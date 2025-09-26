@@ -10,15 +10,11 @@ export default function NewCheckoutPage() {
   const [loading, setLoading] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState(false);
   const [error, setError] = useState("");
-  const [address, setAddress] = useState("123 Main St, Mumbai, India");
-  const [phone, setPhone] = useState("+91-1234567890");
-  const [paymentMethod, setPaymentMethod] = useState("Cash on Delivery");
 
-  // Example user data. In a real app, you'd get this from user profile
   const user = {
     name: "Yash Chikhale",
-    address,
-    phone,
+    address: "123 Main St, Mumbai, India",
+    phone: "+91-1234567890",
     email: "yashchikhale20@gmail.com"
   };
 
@@ -27,35 +23,51 @@ export default function NewCheckoutPage() {
   const handlePlaceOrder = async () => {
     setLoading(true);
     setError("");
+    
     try {
       const userId = localStorage.getItem("userId") || "guest";
-      const res = await fetch(API_URL, {
+      const orderData = {
+        userId,
+        products: cart.map(item => ({
+          productId: item.id,
+          quantity: item.quantity,
+          price: item.price,
+          title: item.title,
+          image: item.image,
+          category: item.category,
+        })),
+        total,
+        date: new Date().toISOString(),
+        status: "pending",
+        shippingAddress: {
+          name: user.name,
+          address: user.address,
+          phone: user.phone,
+          email: user.email
+        }
+      };
+
+      const response = await fetch(API_URL, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId,
-          products: cart.map(item => ({
-            productId: item.id,
-            quantity: item.quantity,
-            price: item.price,
-            title: item.title,
-            image: item.image,
-            category: item.category,
-          })),
-          total,
-          paymentMethod,
-          address,
-          phone,
-          date: new Date().toISOString(),
-        }),
+        headers: { 
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(orderData),
       });
-      if (!res.ok) throw new Error("Failed to place order");
-      clearCart();
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to place order");
+      }
+
+      await clearCart();
       setOrderSuccess(true);
     } catch (err) {
-      setError("Failed to place order. Please try again.");
+      console.error("Order placement error:", err);
+      setError(err.message || "Failed to place order. Please try again.");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   if (orderSuccess) {
@@ -92,51 +104,31 @@ export default function NewCheckoutPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#dbeafe] via-[#bfdbfe] to-[#93c5fd] py-12">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl px-8 py-10 border border-blue-200">
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold text-[#2563eb] tracking-wider mb-2">
-            Checkout
-          </h2>
-          <p className="text-gray-500 text-lg mb-2">
-            Review your order & delivery details before placing your order.
-          </p>
-        </div>
+        <h2 className="text-3xl font-bold mb-6 text-[#2563eb] tracking-wider">CHECKOUT</h2>
+        <p className="text-gray-600 mb-8">Review your order & delivery details before placing your order.</p>
+        
         {error && (
-          <div className="mb-4 bg-red-100 text-red-700 font-semibold rounded px-4 py-2 text-center">
+          <div className="mb-6 px-4 py-3 text-red-600 bg-red-50 border border-red-200 rounded">
             {error}
           </div>
         )}
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
           {/* Delivery Address */}
           <div className="col-span-1">
-            <h3 className="text-xl font-bold text-[#2563eb] mb-3">Delivery Address</h3>
+            <h3 className="text-xl font-bold text-[#2563eb] mb-3">DELIVERY ADDRESS</h3>
             <div className="bg-gray-50 rounded-lg p-5 mb-4 shadow">
-              <div className="font-semibold mb-2">{user.name}</div>
-              <div className="text-gray-600 mb-2">{user.address}</div>
-              <div className="text-gray-600 mb-2">Phone: {user.phone}</div>
+              <div className="font-semibold">{user.name}</div>
+              <div className="text-gray-600">{user.address}</div>
+              <div className="text-gray-600">Phone: {user.phone}</div>
               <div className="text-gray-600">Email: {user.email}</div>
             </div>
-            <div className="text-sm text-gray-400 mt-2">
-              <label htmlFor="address" className="block mb-1">Edit address:</label>
-              <input
-                id="address"
-                type="text"
-                value={address}
-                onChange={e => setAddress(e.target.value)}
-                className="w-full px-2 py-1 rounded border border-gray-300 focus:ring-2 focus:ring-blue-200"
-              />
-              <label htmlFor="phone" className="block mt-2 mb-1">Phone:</label>
-              <input
-                id="phone"
-                type="text"
-                value={phone}
-                onChange={e => setPhone(e.target.value)}
-                className="w-full px-2 py-1 rounded border border-gray-300 focus:ring-2 focus:ring-blue-200"
-              />
-            </div>
+            <div className="text-sm text-gray-400 mt-2">Edit address in your profile settings.</div>
           </div>
+
           {/* Payment Summary */}
           <div className="col-span-1">
-            <h3 className="text-xl font-bold text-[#2563eb] mb-3">Payment</h3>
+            <h3 className="text-xl font-bold text-[#2563eb] mb-3">PAYMENT</h3>
             <div className="bg-gray-50 rounded-lg p-5 mb-4 shadow">
               <div className="flex justify-between mb-2">
                 <span>Subtotal</span>
@@ -152,29 +144,18 @@ export default function NewCheckoutPage() {
                 <span>₹{total.toFixed(2)}</span>
               </div>
             </div>
-            <div className="mb-4">
-              <label className="block text-sm mb-1 font-semibold">Payment Method:</label>
-              <select
-                value={paymentMethod}
-                onChange={e => setPaymentMethod(e.target.value)}
-                className="w-full px-2 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-200"
-              >
-                <option>Cash on Delivery</option>
-                <option>Credit/Debit Card (Demo)</option>
-                <option>UPI (Demo)</option>
-              </select>
-            </div>
             <button
-              className="w-full py-3 mt-4 bg-green-600 text-white rounded-lg shadow hover:bg-green-700 font-semibold text-lg transition"
+              className={`w-full py-3 mt-4 bg-green-600 text-white rounded-lg shadow hover:bg-green-700 font-semibold text-lg transition ${loading ? "opacity-50 cursor-not-allowed" : ""}`}
               onClick={handlePlaceOrder}
               disabled={loading}
             >
               {loading ? "Placing Order..." : "Place Order"}
             </button>
           </div>
+
           {/* Order Summary */}
           <div className="col-span-1">
-            <h3 className="text-xl font-bold text-[#2563eb] mb-3">Order Summary</h3>
+            <h3 className="text-xl font-bold text-[#2563eb] mb-3">ORDER SUMMARY</h3>
             <div className="bg-gray-50 rounded-lg p-5 shadow">
               <ul className="divide-y">
                 {cart.map(item => (

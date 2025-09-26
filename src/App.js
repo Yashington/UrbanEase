@@ -16,7 +16,7 @@ const ProductDetailPage = lazy(() => import("./pages/ProductDetailPage"));
 const NewCheckoutPage = lazy(() => import("./pages/NewCheckoutPage"));
 
 function App() {
-  // Start with logged out state by default
+  // Default to logged out state
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   // Update localStorage when login status changes
@@ -31,7 +31,7 @@ function App() {
           <div className="min-h-screen flex flex-col">
             <Navbar isLoggedIn={isLoggedIn} setIsLoggedIn={setIsLoggedIn} />
             <ThemeToggle />
-            <div className="flex-1 pt-[90px] bg-gradient-to-br from-[#dbeafe] via-[#bfdbfe] to-[#93c5fd]">
+            <div className="flex-1 pt-[90px]">
               <Suspense fallback={<div>Loading...</div>}>
                 <Routes>
                   <Route path="/" element={<Home />} />

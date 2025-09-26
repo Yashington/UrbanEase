@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { FaFacebookF, FaGoogle, FaLinkedinIn } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
-import { useCart } from "../context/CartContext";
 
 const API_URL = "http://localhost:5000/api/auth";
 
@@ -11,7 +10,6 @@ export default function AuthPage({ setIsLoggedIn }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const navigate = useNavigate();
-  const { loadCartFromDatabase } = useCart();
 
   const handleInput = (e) => {
     setForm((prev) => ({
@@ -32,17 +30,12 @@ export default function AuthPage({ setIsLoggedIn }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.msg || "Login failed");
-      
       setIsLoggedIn(true);
       localStorage.setItem("userId", data.user._id);
-      
-      // Load user's cart from database after login
-      await loadCartFromDatabase();
-      
-      setLoading(false);
       navigate("/");
     } catch (err) {
       setError(err.message);
+    } finally {
       setLoading(false);
     }
   };
@@ -63,18 +56,18 @@ export default function AuthPage({ setIsLoggedIn }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.msg || "Signup failed");
-      setLoading(false);
       setIsSignIn(true);
       setForm({ name: "", email: "", password: "" });
       setError("Signup successful! Please login.");
     } catch (err) {
       setError(err.message);
+    } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center" style={{ background: "#f5f6f8" }}>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#dbeafe] via-[#bfdbfe] to-[#93c5fd] py-12">
       <div className="relative w-[900px] h-[500px] rounded-2xl shadow-2xl overflow-hidden bg-white flex">
         {/* Animated panels */}
         <div

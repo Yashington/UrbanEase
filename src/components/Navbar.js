@@ -19,13 +19,10 @@ function Navbar({ isLoggedIn, setIsLoggedIn }) {
     }
   }, [menuOpen]);
 
-  // Remove blue horizontal box by removing any extra divs or elements below navbar
-  // (No additional elements needed here!)
-
   const handleLogout = () => {
     setIsLoggedIn(false);
     localStorage.setItem("isLoggedIn", "false");
-    clearCart(); // Clear cart on logout
+    clearCart();
     localStorage.removeItem("cart");
     navigate("/");
   };
@@ -44,13 +41,14 @@ function Navbar({ isLoggedIn, setIsLoggedIn }) {
 
   return (
     <nav
-      className="w-full h-[90px] flex items-center justify-between px-12 py-7 bg-[#f6f9fd] shadow-sm fixed top-0 left-0 z-50"
+      className="w-full h-[90px] flex items-center justify-between px-12 py-7 bg-white shadow-lg fixed top-0 left-0 z-50 border-b border-gray-100"
       role="navigation"
       aria-label="Main navigation"
     >
       <Link to="/" className="flex items-center gap-2" aria-label="Home">
         <NavbarLogo />
       </Link>
+      
       {/* Mobile menu toggle button (visible on small screens) */}
       <button
         className="md:hidden text-3xl text-[#2563eb]"
@@ -61,6 +59,7 @@ function Navbar({ isLoggedIn, setIsLoggedIn }) {
       >
         ☰
       </button>
+      
       <ul
         id="main-menu"
         className={`flex gap-12 text-xl font-[sans-serif] text-[#22223B] font-medium items-center ${
@@ -71,7 +70,7 @@ function Navbar({ isLoggedIn, setIsLoggedIn }) {
         <li role="none">
           <Link
             to="/"
-            className="hover:text-[#2563eb] transition"
+            className="hover:text-[#2563eb] transition-colors duration-200 px-3 py-2 rounded-lg hover:bg-blue-50"
             ref={firstMenuRef}
             role="menuitem"
             tabIndex={menuOpen ? 0 : undefined}
@@ -81,29 +80,39 @@ function Navbar({ isLoggedIn, setIsLoggedIn }) {
           </Link>
         </li>
         <li role="none">
-          <Link to="/featured" className="hover:text-[#2563eb] transition" role="menuitem" aria-label="Featured">
+          <Link 
+            to="/featured" 
+            className="hover:text-[#2563eb] transition-colors duration-200 px-3 py-2 rounded-lg hover:bg-blue-50" 
+            role="menuitem" 
+            aria-label="Featured"
+          >
             Featured
           </Link>
         </li>
         <li role="none">
-          <Link to="/products" className="hover:text-[#2563eb] transition" role="menuitem" aria-label="Products">
+          <Link 
+            to="/products" 
+            className="hover:text-[#2563eb] transition-colors duration-200 px-3 py-2 rounded-lg hover:bg-blue-50" 
+            role="menuitem" 
+            aria-label="Products"
+          >
             Products
           </Link>
         </li>
+        
         {isLoggedIn && (
           <>
             <li className="relative" role="none">
               <Link
                 to="/cart"
-                className="hover:text-[#2563eb] transition flex items-center gap-1"
+                className="hover:text-[#2563eb] transition-colors duration-200 flex items-center gap-1 px-3 py-2 rounded-lg hover:bg-blue-50"
                 role="menuitem"
                 aria-label="View Cart"
               >
                 <FaShoppingCart className="text-2xl" aria-hidden="true" />
-                {/* Cart badge */}
                 {cart.length > 0 && (
                   <span
-                    className="absolute -top-2 -right-4 bg-[#2563eb] text-white text-xs px-2 rounded-full"
+                    className="absolute -top-2 -right-4 bg-[#2563eb] text-white text-xs px-2 rounded-full min-w-[20px] h-5 flex items-center justify-center"
                     aria-label={`${cart.length} items in cart`}
                   >
                     {cart.length}
@@ -114,7 +123,7 @@ function Navbar({ isLoggedIn, setIsLoggedIn }) {
             <li role="none">
               <button
                 onClick={handleLogout}
-                className="hover:text-[#2563eb] transition bg-transparent border-none cursor-pointer flex items-center"
+                className="hover:text-[#2563eb] transition-colors duration-200 bg-transparent border-none cursor-pointer flex items-center px-3 py-2 rounded-lg hover:bg-blue-50"
                 style={{ font: "inherit" }}
                 aria-label="Logout"
                 role="menuitem"
@@ -124,15 +133,17 @@ function Navbar({ isLoggedIn, setIsLoggedIn }) {
             </li>
           </>
         )}
+        
         {!isLoggedIn && (
           <li role="none">
             <button
               onClick={() => navigate("/auth")}
-              className="bg-transparent border-none cursor-pointer flex items-center"
+              className="border-2 border-[#2563eb] text-[#2563eb] bg-transparent px-6 py-2 rounded-full font-semibold transition-all duration-200 hover:bg-[#2563eb] hover:text-white flex items-center gap-2"
               aria-label="User Login / Signup"
               role="menuitem"
             >
-              <FaUserCircle className="text-3xl text-[#2563eb] hover:text-[#1d4ed8] transition" aria-hidden="true" />
+              <FaUserCircle className="text-xl" aria-hidden="true" />
+              Sign In
             </button>
           </li>
         )}
