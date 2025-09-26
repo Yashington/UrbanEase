@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { FaFacebookF, FaGoogle, FaLinkedinIn } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
+import { useCart } from "../context/CartContext";
 
 const API_URL = "http://localhost:5000/api/auth";
 
@@ -9,7 +10,8 @@ export default function AuthPage({ setIsLoggedIn }) {
   const [form, setForm] = useState({ name: "", email: "", password: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const navigate = useNavigate(); // FINAL CHANGE: for redirect
+  const navigate = useNavigate();
+  const { loadCartFromDatabase } = useCart();
 
   const handleInput = (e) => {
     setForm((prev) => ({
@@ -30,18 +32,21 @@ export default function AuthPage({ setIsLoggedIn }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.msg || "Login failed");
+      
       setIsLoggedIn(true);
+      localStorage.setItem("userId", data.user._id);
+      
+      // Load user's cart from database after login
+      await loadCartFromDatabase();
+      
       setLoading(false);
-      // Optionally: save token, user info in localStorage
-      localStorage.setItem("userId", data.user._id); // Save userId if returned
-      navigate("/"); // FINAL CHANGE: redirect to home page after signin
+      navigate("/");
     } catch (err) {
       setError(err.message);
       setLoading(false);
     }
   };
 
-  // FINAL CHANGE: Do NOT log the user in on signup. Redirect to login panel instead.
   const handleSignUp = async (e) => {
     e.preventDefault();
     setError("");
@@ -59,10 +64,9 @@ export default function AuthPage({ setIsLoggedIn }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.msg || "Signup failed");
       setLoading(false);
-      setIsSignIn(true); // Switch to login panel after signup
-      setForm({ name: "", email: "", password: "" }); // Clear fields
-      setError("Signup successful! Please login."); // Show success message on login panel
-      // DO NOT: setIsLoggedIn(true)
+      setIsSignIn(true);
+      setForm({ name: "", email: "", password: "" });
+      setError("Signup successful! Please login.");
     } catch (err) {
       setError(err.message);
       setLoading(false);
@@ -70,7 +74,7 @@ export default function AuthPage({ setIsLoggedIn }) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#f5f6f8]">
+    <div className="min-h-screen flex items-center justify-center" style={{ background: "#f5f6f8" }}>
       <div className="relative w-[900px] h-[500px] rounded-2xl shadow-2xl overflow-hidden bg-white flex">
         {/* Animated panels */}
         <div
@@ -92,7 +96,6 @@ export default function AuthPage({ setIsLoggedIn }) {
               </button>
             </div>
             <div className="text-xs text-gray-500 mb-4">or use your account</div>
-            {/* Show error on login panel */}
             {error && isSignIn && (
               <div className="mb-4 px-4 py-2 text-red-600 bg-red-50 border border-red-200 rounded text-sm w-full text-center">
                 {error}
@@ -184,7 +187,6 @@ export default function AuthPage({ setIsLoggedIn }) {
               </button>
             </div>
             <div className="text-xs text-gray-500 mb-4">or use your email for registration</div>
-            {/* Show error on sign up panel */}
             {error && !isSignIn && (
               <div className="mb-4 px-4 py-2 text-red-600 bg-red-50 border border-red-200 rounded text-sm w-full text-center">
                 {error}

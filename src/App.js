@@ -16,11 +16,8 @@ const ProductDetailPage = lazy(() => import("./pages/ProductDetailPage"));
 const NewCheckoutPage = lazy(() => import("./pages/NewCheckoutPage"));
 
 function App() {
-  // Persist login state across refreshes (optional)
-  const [isLoggedIn, setIsLoggedIn] = useState(() => {
-    const stored = localStorage.getItem("isLoggedIn");
-    return stored === "true";
-  });
+  // Start with logged out state by default
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   // Update localStorage when login status changes
   React.useEffect(() => {
@@ -31,10 +28,10 @@ function App() {
     <ThemeProvider>
       <CartProvider>
         <Router>
-          <div className="min-h-screen flex flex-col bg-gradient-to-br from-[#dbeafe] via-[#bfdbfe] to-[#93c5fd]">
+          <div className="min-h-screen flex flex-col">
             <Navbar isLoggedIn={isLoggedIn} setIsLoggedIn={setIsLoggedIn} />
             <ThemeToggle />
-            <div className="flex-1 pt-[90px]">
+            <div className="flex-1 pt-[90px] bg-gradient-to-br from-[#dbeafe] via-[#bfdbfe] to-[#93c5fd]">
               <Suspense fallback={<div>Loading...</div>}>
                 <Routes>
                   <Route path="/" element={<Home />} />
@@ -45,7 +42,7 @@ function App() {
                   <Route path="/auth" element={<AuthPage setIsLoggedIn={setIsLoggedIn} />} />
                   <Route path="/login" element={<AuthPage setIsLoggedIn={setIsLoggedIn} />} />
                   <Route path="/signup" element={<AuthPage setIsLoggedIn={setIsLoggedIn} />} />
-                  <Route path="/checkout" element={<NewCheckoutPage />} /> {/* Correct checkout route */}
+                  <Route path="/checkout" element={<NewCheckoutPage />} />
                 </Routes>
               </Suspense>
             </div>
