@@ -1,16 +1,72 @@
 import React, { useState } from "react";
 import { FaFacebookF, FaGoogle, FaLinkedinIn } from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
+
+const API_URL = "http://localhost:5000/api/auth";
 
 export default function AuthPage({ setIsLoggedIn }) {
   const [isSignIn, setIsSignIn] = useState(true);
+  const [form, setForm] = useState({ name: "", email: "", password: "" });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const navigate = useNavigate(); // FINAL CHANGE: for redirect
 
-  const handleSignIn = (e) => {
-    e.preventDefault();
-    setIsLoggedIn(true);
+  const handleInput = (e) => {
+    setForm((prev) => ({
+      ...prev,
+      [e.target.name]: e.target.value,
+    }));
   };
-  const handleSignUp = (e) => {
+
+  const handleSignIn = async (e) => {
     e.preventDefault();
-    setIsLoggedIn(true);
+    setError("");
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: form.email, password: form.password }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.msg || "Login failed");
+      setIsLoggedIn(true);
+      setLoading(false);
+      // Optionally: save token, user info in localStorage
+      localStorage.setItem("userId", data.user._id); // Save userId if returned
+      navigate("/"); // FINAL CHANGE: redirect to home page after signin
+    } catch (err) {
+      setError(err.message);
+      setLoading(false);
+    }
+  };
+
+  // FINAL CHANGE: Do NOT log the user in on signup. Redirect to login panel instead.
+  const handleSignUp = async (e) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/signup`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: form.name,
+          email: form.email,
+          password: form.password,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.msg || "Signup failed");
+      setLoading(false);
+      setIsSignIn(true); // Switch to login panel after signup
+      setForm({ name: "", email: "", password: "" }); // Clear fields
+      setError("Signup successful! Please login."); // Show success message on login panel
+      // DO NOT: setIsLoggedIn(true)
+    } catch (err) {
+      setError(err.message);
+      setLoading(false);
+    }
   };
 
   return (
@@ -36,25 +92,40 @@ export default function AuthPage({ setIsLoggedIn }) {
               </button>
             </div>
             <div className="text-xs text-gray-500 mb-4">or use your account</div>
+            {/* Show error on login panel */}
+            {error && isSignIn && (
+              <div className="mb-4 px-4 py-2 text-red-600 bg-red-50 border border-red-200 rounded text-sm w-full text-center">
+                {error}
+              </div>
+            )}
             <form className="w-full flex flex-col" onSubmit={handleSignIn}>
               <input
                 type="email"
+                name="email"
                 placeholder="Email"
                 className="mb-4 px-4 py-3 rounded bg-gray-100 text-lg"
                 required
+                value={form.email}
+                onChange={handleInput}
+                disabled={loading}
               />
               <input
                 type="password"
+                name="password"
                 placeholder="Password"
                 className="mb-4 px-4 py-3 rounded bg-gray-100 text-lg"
                 required
+                value={form.password}
+                onChange={handleInput}
+                disabled={loading}
               />
               <div className="text-xs text-[#2563eb] mb-4 cursor-pointer">Forgot your password?</div>
               <button
                 type="submit"
-                className="bg-[#2563eb] text-white rounded-full px-8 py-3 font-semibold tracking-wide shadow hover:bg-blue-600 transition text-lg"
+                className={`bg-[#2563eb] text-white rounded-full px-8 py-3 font-semibold tracking-wide shadow hover:bg-blue-600 transition text-lg ${loading ? "opacity-50 cursor-not-allowed" : ""}`}
+                disabled={loading}
               >
-                SIGN IN
+                {loading ? "Signing in..." : "SIGN IN"}
               </button>
             </form>
           </div>
@@ -65,7 +136,11 @@ export default function AuthPage({ setIsLoggedIn }) {
               Enter your personal details and start your journey with us
             </p>
             <button
-              onClick={() => setIsSignIn(false)}
+              onClick={() => {
+                setIsSignIn(false);
+                setError("");
+                setForm({ name: "", email: "", password: "" });
+              }}
               className="border border-white rounded-full px-10 py-3 font-semibold text-white hover:bg-white hover:text-[#2563eb] transition text-lg"
             >
               SIGN UP
@@ -84,7 +159,11 @@ export default function AuthPage({ setIsLoggedIn }) {
               To keep connected with us please login with your personal info
             </p>
             <button
-              onClick={() => setIsSignIn(true)}
+              onClick={() => {
+                setIsSignIn(true);
+                setError("");
+                setForm({ name: "", email: "", password: "" });
+              }}
               className="border border-white rounded-full px-10 py-3 font-semibold text-white hover:bg-white hover:text-[#2563eb] transition text-lg"
             >
               SIGN IN
@@ -105,30 +184,49 @@ export default function AuthPage({ setIsLoggedIn }) {
               </button>
             </div>
             <div className="text-xs text-gray-500 mb-4">or use your email for registration</div>
+            {/* Show error on sign up panel */}
+            {error && !isSignIn && (
+              <div className="mb-4 px-4 py-2 text-red-600 bg-red-50 border border-red-200 rounded text-sm w-full text-center">
+                {error}
+              </div>
+            )}
             <form className="w-full flex flex-col" onSubmit={handleSignUp}>
               <input
                 type="text"
+                name="name"
                 placeholder="Name"
                 className="mb-4 px-4 py-3 rounded bg-gray-100 text-lg"
                 required
+                value={form.name}
+                onChange={handleInput}
+                disabled={loading}
               />
               <input
                 type="email"
+                name="email"
                 placeholder="Email"
                 className="mb-4 px-4 py-3 rounded bg-gray-100 text-lg"
                 required
+                value={form.email}
+                onChange={handleInput}
+                disabled={loading}
               />
               <input
                 type="password"
+                name="password"
                 placeholder="Password"
                 className="mb-6 px-4 py-3 rounded bg-gray-100 text-lg"
                 required
+                value={form.password}
+                onChange={handleInput}
+                disabled={loading}
               />
               <button
                 type="submit"
-                className="bg-[#2563eb] text-white rounded-full px-8 py-3 font-semibold tracking-wide shadow hover:bg-blue-600 transition text-lg"
+                className={`bg-[#2563eb] text-white rounded-full px-8 py-3 font-semibold tracking-wide shadow hover:bg-blue-600 transition text-lg ${loading ? "opacity-50 cursor-not-allowed" : ""}`}
+                disabled={loading}
               >
-                SIGN UP
+                {loading ? "Signing up..." : "SIGN UP"}
               </button>
             </form>
           </div>
