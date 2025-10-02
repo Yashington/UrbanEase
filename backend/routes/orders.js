@@ -1,114 +1,195 @@
-const express = require("express");
+const express = require('express');
+const { authenticate, authorize } = require('../middleware/auth');
+
 const router = express.Router();
 
 // Simple in-memory storage (replace with database in production)
 let orders = [];
 let orderIdCounter = 1;
 
-// Get all orders for a user
-router.get("/:userId", (req, res) => {
-  try {
-    const { userId } = req.params;
-    const userOrders = orders.filter(order => order.userId === userId);
-    res.json(userOrders);
-  } catch (error) {
-    console.error("Get orders error:", error);
-    res.status(500).json({ message: "Failed to get orders" });
-  }
-});
-
-// Create new order
-router.post("/", (req, res) => {
+// Create order (authenticated users only)
+router.post('/', authenticate, async (req, res) => {
   try {
     const orderData = req.body;
     
     // Validate required fields
-    if (!orderData.userId || !orderData.products || orderData.products.length === 0) {
-      return res.status(400).json({ message: "Missing required fields: userId, products" });
+    if (!orderData.products || orderData.products.length === 0) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Order must contain at least one product' 
+      });
     }
 
     if (!orderData.total || orderData.total <= 0) {
-      return res.status(400).json({ message: "Invalid total amount" });
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Invalid total amount' 
+      });
     }
 
-    // Create order with unique ID
+    // Create order with authenticated user's ID
     const order = {
       id: orderIdCounter++,
-      userId: orderData.userId,
+      userId: req.user._id,
+      userEmail: req.user.email,
+      userName: req.user.name,
       products: orderData.products,
       total: orderData.total,
-      status: "pending",
-      date: new Date().toISOString(),
+      status: 'pending',
+      paymentMethod: orderData.paymentMethod || 'cash_on_delivery',
       shippingAddress: orderData.shippingAddress || {},
-      paymentMethod: orderData.paymentMethod || "Cash on Delivery",
-      createdAt: new Date().toISOString()
+      orderNumber: `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     };
 
     orders.push(order);
     
-    console.log(`Order ${order.id} created successfully for user ${order.userId}`);
-    console.log(`Order total: ₹${order.total}`);
-    console.log(`Products: ${order.products.length} items`);
+    console.log(`✅ Order ${order.id} created successfully for ${req.user.name} (${req.user.email})`);
+    console.log(`💰 Order total: ₹${order.total}`);
+    console.log(`📦 Products: ${order.products.length} items`);
     
     res.status(201).json({ 
-      message: "Order placed successfully", 
-      orderId: order.id,
-      order: order
+      success: true,
+      message: 'Order placed successfully', 
+      data: {
+        orderId: order.id,
+        orderNumber: order.orderNumber,
+        order: order
+      }
     });
   } catch (error) {
-    console.error("Order creation error:", error);
-    res.status(500).json({ message: "Failed to create order. Please try again." });
+    console.error('Order creation error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to create order. Please try again.',
+      error: error.message 
+    });
   }
 });
 
-// Get single order by ID
-router.get("/order/:orderId", (req, res) => {
+// Get user's orders
+router.get('/my-orders', authenticate, async (req, res) => {
   try {
-    const { orderId } = req.params;
-    const order = orders.find(o => o.id == orderId);
+    const userOrders = orders.filter(order => order.userId.toString() === req.user._id.toString());
+    
+    res.json({
+      success: true,
+      data: {
+        orders: userOrders,
+        total: userOrders.length
+      }
+    });
+  } catch (error) {
+    console.error('Fetch orders error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to get orders',
+      error: error.message 
+    });
+  }
+});
+
+// Get single order
+router.get('/:id', authenticate, async (req, res) => {
+  try {
+    const order = orders.find(o => 
+      o.id == req.params.id && 
+      o.userId.toString() === req.user._id.toString()
+    );
     
     if (!order) {
-      return res.status(404).json({ message: "Order not found" });
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Order not found' 
+      });
     }
     
-    res.json(order);
+    res.json({
+      success: true,
+      data: { order }
+    });
   } catch (error) {
-    console.error("Get order error:", error);
-    res.status(500).json({ message: "Failed to get order" });
+    console.error('Fetch order error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to get order',
+      error: error.message 
+    });
   }
 });
 
-// Update order status
-router.patch("/:orderId", (req, res) => {
+// Update order status (admin only)
+router.patch('/:id/status', authenticate, authorize('admin', 'moderator'), async (req, res) => {
   try {
-    const { orderId } = req.params;
     const { status } = req.body;
     
-    const order = orders.find(o => o.id == orderId);
-    if (!order) {
-      return res.status(404).json({ message: "Order not found" });
+    const validStatuses = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid status'
+      });
     }
-    
+
+    const order = orders.find(o => o.id == req.params.id);
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found'
+      });
+    }
+
     order.status = status;
     order.updatedAt = new Date().toISOString();
-    
-    res.json({ message: "Order updated successfully", order });
+
+    res.json({
+      success: true,
+      message: 'Order status updated successfully',
+      data: { order }
+    });
   } catch (error) {
-    console.error("Update order error:", error);
-    res.status(500).json({ message: "Failed to update order" });
+    console.error('Update order error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update order',
+      error: error.message
+    });
   }
 });
 
-// Debug endpoint to see all orders
-router.get("/debug/all", (req, res) => {
+// Get all orders (admin only)
+router.get('/admin/all', authenticate, authorize('admin'), async (req, res) => {
+  try {
+    res.json({
+      success: true,
+      data: {
+        orders: orders,
+        total: orders.length
+      }
+    });
+  } catch (error) {
+    console.error('Admin fetch orders error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get orders',
+      error: error.message
+    });
+  }
+});
+
+// Debug endpoint
+router.get('/debug/all', (req, res) => {
   res.json({ 
     totalOrders: orders.length, 
     orders: orders.map(o => ({
       id: o.id,
       userId: o.userId,
+      userEmail: o.userEmail,
       total: o.total,
       status: o.status,
-      date: o.date
+      orderNumber: o.orderNumber,
+      createdAt: o.createdAt
     }))
   });
 });

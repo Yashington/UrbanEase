@@ -11,13 +11,16 @@ import Navbar from "./components/Navbar";
 import Home from "./pages/Home";
 import ThemeToggle from "./components/ThemeToggle";
 
-// Lazy load detail and checkout pages for code splitting
+// Lazy load components
 const ProductDetailPage = lazy(() => import("./pages/ProductDetailPage"));
-const NewCheckoutPage = lazy(() => import("./pages/NewCheckoutPage"));
+const CheckoutPage = lazy(() => import("./pages/NewCheckoutPage"));
 
 function App() {
-  // Default to logged out state
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  // Persist login state across refreshes (optional)
+  const [isLoggedIn, setIsLoggedIn] = useState(() => {
+    const stored = localStorage.getItem("isLoggedIn");
+    return stored === "true";
+  });
 
   // Update localStorage when login status changes
   React.useEffect(() => {
@@ -28,11 +31,11 @@ function App() {
     <ThemeProvider>
       <CartProvider>
         <Router>
-          <div className="min-h-screen flex flex-col">
+          <div className="min-h-screen flex flex-col bg-gradient-to-br from-[#dbeafe] via-[#bfdbfe] to-[#93c5fd]">
             <Navbar isLoggedIn={isLoggedIn} setIsLoggedIn={setIsLoggedIn} />
             <ThemeToggle />
             <div className="flex-1 pt-[90px]">
-              <Suspense fallback={<div>Loading...</div>}>
+              <Suspense fallback={<div>Loading product details...</div>}>
                 <Routes>
                   <Route path="/" element={<Home />} />
                   <Route path="/featured" element={<FeaturedCollection />} />
@@ -42,7 +45,7 @@ function App() {
                   <Route path="/auth" element={<AuthPage setIsLoggedIn={setIsLoggedIn} />} />
                   <Route path="/login" element={<AuthPage setIsLoggedIn={setIsLoggedIn} />} />
                   <Route path="/signup" element={<AuthPage setIsLoggedIn={setIsLoggedIn} />} />
-                  <Route path="/checkout" element={<NewCheckoutPage />} />
+                  <Route path="/checkout" element={<CheckoutPage />} />
                 </Routes>
               </Suspense>
             </div>

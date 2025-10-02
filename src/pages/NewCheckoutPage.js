@@ -25,9 +25,15 @@ export default function NewCheckoutPage() {
     setError("");
     
     try {
-      const userId = localStorage.getItem("userId") || "guest";
+      const accessToken = localStorage.getItem("accessToken");
+      
+      if (!accessToken) {
+        setError("Please login to place an order");
+        setLoading(false);
+        return;
+      }
+
       const orderData = {
-        userId,
         products: cart.map(item => ({
           productId: item.id,
           quantity: item.quantity,
@@ -37,8 +43,7 @@ export default function NewCheckoutPage() {
           category: item.category,
         })),
         total,
-        date: new Date().toISOString(),
-        status: "pending",
+        paymentMethod: "cash_on_delivery",
         shippingAddress: {
           name: user.name,
           address: user.address,
@@ -51,20 +56,31 @@ export default function NewCheckoutPage() {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
+          "Authorization": `Bearer ${accessToken}`
         },
         body: JSON.stringify(orderData),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to place order");
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.message || "Failed to place order");
       }
 
       await clearCart();
       setOrderSuccess(true);
+      
+      console.log("✅ Order placed successfully:", data.data.orderNumber);
     } catch (err) {
       console.error("Order placement error:", err);
       setError(err.message || "Failed to place order. Please try again.");
+      
+      // If token expired, redirect to login
+      if (err.message.includes("token") || err.message.includes("Unauthorized")) {
+        localStorage.removeItem("accessToken");
+        localStorage.removeItem("refreshToken");
+        navigate("/auth");
+      }
     } finally {
       setLoading(false);
     }
@@ -81,7 +97,7 @@ export default function NewCheckoutPage() {
           <h2 className="text-2xl font-semibold text-green-700 mt-4 mb-2">Order placed successfully!</h2>
           <p className="text-lg text-gray-700 mb-2">Thank you for shopping with us.</p>
           <button
-            className="mt-6 px-6 py-3 bg-green-600 text-white rounded shadow hover:bg-green-700"
+            className="mt-6 px-6 py-3 bg-green-600 text-white rounded shadow hover:bg-green-700 transition-colors"
             onClick={() => navigate("/products")}
           >
             Continue Shopping
@@ -123,7 +139,6 @@ export default function NewCheckoutPage() {
               <div className="text-gray-600">Phone: {user.phone}</div>
               <div className="text-gray-600">Email: {user.email}</div>
             </div>
-            <div className="text-sm text-gray-400 mt-2">Edit address in your profile settings.</div>
           </div>
 
           {/* Payment Summary */}
@@ -145,7 +160,7 @@ export default function NewCheckoutPage() {
               </div>
             </div>
             <button
-              className={`w-full py-3 mt-4 bg-green-600 text-white rounded-lg shadow hover:bg-green-700 font-semibold text-lg transition ${loading ? "opacity-50 cursor-not-allowed" : ""}`}
+              className={`w-full py-3 mt-4 bg-green-600 text-white rounded-lg shadow hover:bg-green-700 font-semibold text-lg transition-colors ${loading ? "opacity-50 cursor-not-allowed" : ""}`}
               onClick={handlePlaceOrder}
               disabled={loading}
             >

@@ -29,9 +29,18 @@ export default function AuthPage({ setIsLoggedIn }) {
         body: JSON.stringify({ email: form.email, password: form.password }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.msg || "Login failed");
+      
+      if (!data.success) {
+        throw new Error(data.message || "Login failed");
+      }
+      
+      // Store JWT tokens
+      localStorage.setItem("accessToken", data.data.accessToken);
+      localStorage.setItem("refreshToken", data.data.refreshToken);
+      localStorage.setItem("userId", data.data.user._id);
+      localStorage.setItem("userRole", data.data.user.role);
+      
       setIsLoggedIn(true);
-      localStorage.setItem("userId", data.user._id);
       navigate("/");
     } catch (err) {
       setError(err.message);
@@ -55,7 +64,11 @@ export default function AuthPage({ setIsLoggedIn }) {
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.msg || "Signup failed");
+      
+      if (!data.success) {
+        throw new Error(data.message || "Signup failed");
+      }
+      
       setIsSignIn(true);
       setForm({ name: "", email: "", password: "" });
       setError("Signup successful! Please login.");
@@ -76,15 +89,15 @@ export default function AuthPage({ setIsLoggedIn }) {
         >
           {/* Sign In Panel */}
           <div className="w-1/2 flex flex-col justify-center items-center px-14 bg-white">
-            <h2 className="font-bold text-3xl mb-6">Sign in</h2>
+            <h2 className="font-bold text-3xl mb-6 text-gray-800">Sign in</h2>
             <div className="flex space-x-6 mb-6">
-              <button className="bg-gray-100 p-3 rounded-full text-[#2563eb] hover:bg-blue-100">
+              <button className="bg-gray-100 p-3 rounded-full text-[#2563eb] hover:bg-blue-100 transition-colors">
                 <FaFacebookF />
               </button>
-              <button className="bg-gray-100 p-3 rounded-full text-[#2563eb] hover:bg-blue-100">
+              <button className="bg-gray-100 p-3 rounded-full text-[#2563eb] hover:bg-blue-100 transition-colors">
                 <FaGoogle />
               </button>
-              <button className="bg-gray-100 p-3 rounded-full text-[#2563eb] hover:bg-blue-100">
+              <button className="bg-gray-100 p-3 rounded-full text-[#2563eb] hover:bg-blue-100 transition-colors">
                 <FaLinkedinIn />
               </button>
             </div>
@@ -99,7 +112,7 @@ export default function AuthPage({ setIsLoggedIn }) {
                 type="email"
                 name="email"
                 placeholder="Email"
-                className="mb-4 px-4 py-3 rounded bg-gray-100 text-lg"
+                className="mb-4 px-4 py-3 rounded-lg bg-gray-100 text-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
                 value={form.email}
                 onChange={handleInput}
@@ -109,16 +122,16 @@ export default function AuthPage({ setIsLoggedIn }) {
                 type="password"
                 name="password"
                 placeholder="Password"
-                className="mb-4 px-4 py-3 rounded bg-gray-100 text-lg"
+                className="mb-4 px-4 py-3 rounded-lg bg-gray-100 text-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
                 value={form.password}
                 onChange={handleInput}
                 disabled={loading}
               />
-              <div className="text-xs text-[#2563eb] mb-4 cursor-pointer">Forgot your password?</div>
+              <div className="text-xs text-[#2563eb] mb-4 cursor-pointer hover:underline">Forgot your password?</div>
               <button
                 type="submit"
-                className={`bg-[#2563eb] text-white rounded-full px-8 py-3 font-semibold tracking-wide shadow hover:bg-blue-600 transition text-lg ${loading ? "opacity-50 cursor-not-allowed" : ""}`}
+                className={`border-2 border-[#2563eb] text-[#2563eb] bg-white rounded-full px-8 py-3 font-semibold tracking-wide shadow hover:bg-[#2563eb] hover:text-white transition-all duration-200 text-lg ${loading ? "opacity-50 cursor-not-allowed" : ""}`}
                 disabled={loading}
               >
                 {loading ? "Signing in..." : "SIGN IN"}
@@ -137,7 +150,7 @@ export default function AuthPage({ setIsLoggedIn }) {
                 setError("");
                 setForm({ name: "", email: "", password: "" });
               }}
-              className="border border-white rounded-full px-10 py-3 font-semibold text-white hover:bg-white hover:text-[#2563eb] transition text-lg"
+              className="border-2 border-white rounded-full px-10 py-3 font-semibold text-white hover:bg-white hover:text-[#2563eb] transition-all duration-200 text-lg"
             >
               SIGN UP
             </button>
@@ -160,22 +173,22 @@ export default function AuthPage({ setIsLoggedIn }) {
                 setError("");
                 setForm({ name: "", email: "", password: "" });
               }}
-              className="border border-white rounded-full px-10 py-3 font-semibold text-white hover:bg-white hover:text-[#2563eb] transition text-lg"
+              className="border-2 border-white rounded-full px-10 py-3 font-semibold text-white hover:bg-white hover:text-[#2563eb] transition-all duration-200 text-lg"
             >
               SIGN IN
             </button>
           </div>
           {/* Sign Up Panel */}
           <div className="w-1/2 flex flex-col justify-center items-center px-14 bg-white">
-            <h2 className="font-bold text-3xl mb-6">Create Account</h2>
+            <h2 className="font-bold text-3xl mb-6 text-gray-800">Create Account</h2>
             <div className="flex space-x-6 mb-6">
-              <button className="bg-gray-100 p-3 rounded-full text-[#2563eb] hover:bg-blue-100">
+              <button className="bg-gray-100 p-3 rounded-full text-[#2563eb] hover:bg-blue-100 transition-colors">
                 <FaFacebookF />
               </button>
-              <button className="bg-gray-100 p-3 rounded-full text-[#2563eb] hover:bg-blue-100">
+              <button className="bg-gray-100 p-3 rounded-full text-[#2563eb] hover:bg-blue-100 transition-colors">
                 <FaGoogle />
               </button>
-              <button className="bg-gray-100 p-3 rounded-full text-[#2563eb] hover:bg-blue-100">
+              <button className="bg-gray-100 p-3 rounded-full text-[#2563eb] hover:bg-blue-100 transition-colors">
                 <FaLinkedinIn />
               </button>
             </div>
@@ -190,7 +203,7 @@ export default function AuthPage({ setIsLoggedIn }) {
                 type="text"
                 name="name"
                 placeholder="Name"
-                className="mb-4 px-4 py-3 rounded bg-gray-100 text-lg"
+                className="mb-4 px-4 py-3 rounded-lg bg-gray-100 text-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
                 value={form.name}
                 onChange={handleInput}
@@ -200,7 +213,7 @@ export default function AuthPage({ setIsLoggedIn }) {
                 type="email"
                 name="email"
                 placeholder="Email"
-                className="mb-4 px-4 py-3 rounded bg-gray-100 text-lg"
+                className="mb-4 px-4 py-3 rounded-lg bg-gray-100 text-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
                 value={form.email}
                 onChange={handleInput}
@@ -209,16 +222,17 @@ export default function AuthPage({ setIsLoggedIn }) {
               <input
                 type="password"
                 name="password"
-                placeholder="Password"
-                className="mb-6 px-4 py-3 rounded bg-gray-100 text-lg"
+                placeholder="Password (min. 6 characters)"
+                className="mb-6 px-4 py-3 rounded-lg bg-gray-100 text-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
+                minLength="6"
                 value={form.password}
                 onChange={handleInput}
                 disabled={loading}
               />
               <button
                 type="submit"
-                className={`bg-[#2563eb] text-white rounded-full px-8 py-3 font-semibold tracking-wide shadow hover:bg-blue-600 transition text-lg ${loading ? "opacity-50 cursor-not-allowed" : ""}`}
+                className={`border-2 border-[#2563eb] text-[#2563eb] bg-white rounded-full px-8 py-3 font-semibold tracking-wide shadow hover:bg-[#2563eb] hover:text-white transition-all duration-200 text-lg ${loading ? "opacity-50 cursor-not-allowed" : ""}`}
                 disabled={loading}
               >
                 {loading ? "Signing up..." : "SIGN UP"}
