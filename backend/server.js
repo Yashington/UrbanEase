@@ -39,7 +39,8 @@ app.use("/api/cart", cartRoutes);
 app.use("/api/orders", orderRoutes);
 
 // 404 handler
-app.use('*', (req, res) => {
+// FINAL CHANGE: Remove '*' path to fix "Missing parameter name at index 1: *" error
+app.use((req, res) => {
   res.status(404).json({
     success: false,
     message: 'Route not found'
@@ -49,7 +50,7 @@ app.use('*', (req, res) => {
 // Global error handler
 app.use((err, req, res, next) => {
   console.error('Global error:', err);
-  
+
   res.status(err.status || 500).json({
     success: false,
     message: err.message || 'Internal Server Error'

@@ -26,6 +26,7 @@ export default function NewCheckoutPage() {
     
     try {
       const accessToken = localStorage.getItem("accessToken");
+      const userId = localStorage.getItem("userId") || "guest";
       
       if (!accessToken) {
         setError("Please login to place an order");
@@ -34,8 +35,9 @@ export default function NewCheckoutPage() {
       }
 
       const orderData = {
+        userId,
         products: cart.map(item => ({
-          productId: item.id,
+          productId: item.productId || item.id, // Ensure productId field for backend
           quantity: item.quantity,
           price: item.price,
           title: item.title,
@@ -67,10 +69,11 @@ export default function NewCheckoutPage() {
         throw new Error(data.message || "Failed to place order");
       }
 
+      // Clear cart in frontend and backend (MongoDB)
       await clearCart();
       setOrderSuccess(true);
       
-      console.log("✅ Order placed successfully:", data.data.orderNumber);
+      console.log("✅ Order placed successfully:", data.data?.orderNumber || data.data?.order?._id);
     } catch (err) {
       console.error("Order placement error:", err);
       setError(err.message || "Failed to place order. Please try again.");
@@ -174,7 +177,7 @@ export default function NewCheckoutPage() {
             <div className="bg-gray-50 rounded-lg p-5 shadow">
               <ul className="divide-y">
                 {cart.map(item => (
-                  <li key={item.id} className="py-4 flex gap-4 items-center">
+                  <li key={item.productId || item.id} className="py-4 flex gap-4 items-center">
                     <img src={item.image} alt={item.title} className="w-14 h-14 rounded object-cover border" />
                     <div className="flex-1">
                       <div className="font-semibold text-[#22223B]">{item.title}</div>

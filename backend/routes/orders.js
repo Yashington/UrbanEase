@@ -1,17 +1,15 @@
 const express = require('express');
 const { authenticate, authorize } = require('../middleware/auth');
+const Order = require('../models/Order'); // Make sure this path is correct!
+const Cart = require('../models/Cart');   // Needed to clear cart after order
 
 const router = express.Router();
 
-// Simple in-memory storage (replace with database in production)
-let orders = [];
-let orderIdCounter = 1;
-
-// Create order (authenticated users only)
+// Create order (authenticated users only, saves to MongoDB)
 router.post('/', authenticate, async (req, res) => {
   try {
     const orderData = req.body;
-    
+
     // Validate required fields
     if (!orderData.products || orderData.products.length === 0) {
       return res.status(400).json({ 
@@ -19,7 +17,6 @@ router.post('/', authenticate, async (req, res) => {
         message: 'Order must contain at least one product' 
       });
     }
-
     if (!orderData.total || orderData.total <= 0) {
       return res.status(400).json({ 
         success: false, 
@@ -27,33 +24,28 @@ router.post('/', authenticate, async (req, res) => {
       });
     }
 
-    // Create order with authenticated user's ID
-    const order = {
-      id: orderIdCounter++,
+    // Create and save order in MongoDB
+    const order = new Order({
       userId: req.user._id,
-      userEmail: req.user.email,
-      userName: req.user.name,
       products: orderData.products,
       total: orderData.total,
       status: 'pending',
       paymentMethod: orderData.paymentMethod || 'cash_on_delivery',
       shippingAddress: orderData.shippingAddress || {},
-      orderNumber: `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
 
-    orders.push(order);
-    
-    console.log(`✅ Order ${order.id} created successfully for ${req.user.name} (${req.user.email})`);
-    console.log(`💰 Order total: ₹${order.total}`);
-    console.log(`📦 Products: ${order.products.length} items`);
-    
+    await order.save();
+
+    // Clear the user's cart in MongoDB after successful order
+    await Cart.findOneAndUpdate({ userId: req.user._id }, { items: [] });
+
     res.status(201).json({ 
       success: true,
       message: 'Order placed successfully', 
       data: {
-        orderId: order.id,
+        orderId: order._id,
         orderNumber: order.orderNumber,
         order: order
       }
@@ -68,11 +60,10 @@ router.post('/', authenticate, async (req, res) => {
   }
 });
 
-// Get user's orders
+// Get user's orders (from MongoDB)
 router.get('/my-orders', authenticate, async (req, res) => {
   try {
-    const userOrders = orders.filter(order => order.userId.toString() === req.user._id.toString());
-    
+    const userOrders = await Order.find({ userId: req.user._id }).sort({ createdAt: -1 });
     res.json({
       success: true,
       data: {
@@ -90,21 +81,19 @@ router.get('/my-orders', authenticate, async (req, res) => {
   }
 });
 
-// Get single order
+// Get single order (from MongoDB)
 router.get('/:id', authenticate, async (req, res) => {
   try {
-    const order = orders.find(o => 
-      o.id == req.params.id && 
-      o.userId.toString() === req.user._id.toString()
-    );
-    
+    const order = await Order.findOne({ 
+      _id: req.params.id,
+      userId: req.user._id
+    });
     if (!order) {
       return res.status(404).json({ 
         success: false, 
         message: 'Order not found' 
       });
     }
-    
     res.json({
       success: true,
       data: { order }
@@ -119,11 +108,10 @@ router.get('/:id', authenticate, async (req, res) => {
   }
 });
 
-// Update order status (admin only)
+// Update order status (admin only, updates MongoDB)
 router.patch('/:id/status', authenticate, authorize('admin', 'moderator'), async (req, res) => {
   try {
     const { status } = req.body;
-    
     const validStatuses = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({
@@ -132,17 +120,17 @@ router.patch('/:id/status', authenticate, authorize('admin', 'moderator'), async
       });
     }
 
-    const order = orders.find(o => o.id == req.params.id);
+    const order = await Order.findByIdAndUpdate(
+      req.params.id,
+      { status, updatedAt: new Date() },
+      { new: true }
+    );
     if (!order) {
       return res.status(404).json({
         success: false,
         message: 'Order not found'
       });
     }
-
-    order.status = status;
-    order.updatedAt = new Date().toISOString();
-
     res.json({
       success: true,
       message: 'Order status updated successfully',
@@ -158,14 +146,15 @@ router.patch('/:id/status', authenticate, authorize('admin', 'moderator'), async
   }
 });
 
-// Get all orders (admin only)
+// Get all orders (admin only, from MongoDB)
 router.get('/admin/all', authenticate, authorize('admin'), async (req, res) => {
   try {
+    const allOrders = await Order.find({}).sort({ createdAt: -1 });
     res.json({
       success: true,
       data: {
-        orders: orders,
-        total: orders.length
+        orders: allOrders,
+        total: allOrders.length
       }
     });
   } catch (error) {
@@ -176,22 +165,6 @@ router.get('/admin/all', authenticate, authorize('admin'), async (req, res) => {
       error: error.message
     });
   }
-});
-
-// Debug endpoint
-router.get('/debug/all', (req, res) => {
-  res.json({ 
-    totalOrders: orders.length, 
-    orders: orders.map(o => ({
-      id: o.id,
-      userId: o.userId,
-      userEmail: o.userEmail,
-      total: o.total,
-      status: o.status,
-      orderNumber: o.orderNumber,
-      createdAt: o.createdAt
-    }))
-  });
 });
 
 module.exports = router;

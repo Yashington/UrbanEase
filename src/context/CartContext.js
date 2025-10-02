@@ -5,7 +5,7 @@ const CartContext = createContext();
 export function CartProvider({ children }) {
   const [cart, setCart] = useState([]);
 
-  // Load cart from database on mount
+  // Load cart from MongoDB on mount
   useEffect(() => {
     const loadCart = async () => {
       try {
@@ -13,20 +13,21 @@ export function CartProvider({ children }) {
         const response = await fetch(`http://localhost:5000/api/cart/${userId}`);
         if (response.ok) {
           const data = await response.json();
+          // The API returns a cart object or { userId, items: [] }
           setCart(data.items || []);
+        } else {
+          setCart([]);
         }
       } catch (error) {
         console.error("Failed to load cart:", error);
-        // Fallback to localStorage
-        const saved = localStorage.getItem("cart");
-        setCart(saved ? JSON.parse(saved) : []);
+        setCart([]);
       }
     };
-    
+
     loadCart();
   }, []);
 
-  // Save cart to database and localStorage
+  // Save cart to MongoDB
   const saveCart = async (newCart) => {
     try {
       const userId = localStorage.getItem("userId") || "guest";
@@ -35,53 +36,68 @@ export function CartProvider({ children }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ items: newCart }),
       });
-      localStorage.setItem("cart", JSON.stringify(newCart));
     } catch (error) {
       console.error("Failed to save cart:", error);
-      // Fallback to localStorage only
-      localStorage.setItem("cart", JSON.stringify(newCart));
     }
   };
 
-  // Add product to cart
+  // Add product to cart and update DB
   const addToCart = async (product) => {
     const newCart = [...cart];
-    const exists = newCart.find((item) => item.id === product.id);
-    
+    const exists = newCart.find((item) => item.productId === product.id || item.id === product.id);
     if (exists) {
       exists.quantity = (exists.quantity || 1) + 1;
     } else {
-      newCart.push({ ...product, quantity: 1 });
+      newCart.push({
+        ...product,
+        productId: product.id, // Ensure productId field for backend
+        quantity: 1,
+      });
     }
-    
     setCart(newCart);
     await saveCart(newCart);
   };
 
-  // Remove product from cart
+  // Remove product from cart and update DB
   const removeFromCart = async (id) => {
-    const newCart = cart.filter((item) => item.id !== id);
-    setCart(newCart);
-    await saveCart(newCart);
-  };
-
-  // Update product quantity
-  const updateQuantity = async (id, quantity) => {
-    const newCart = cart.map((item) =>
-      item.id === id ? { ...item, quantity: Math.max(1, quantity) } : item
+    const newCart = cart.filter(
+      (item) => (item.productId || item.id) !== id
     );
     setCart(newCart);
     await saveCart(newCart);
   };
 
-  // Clear cart
+  // Update product quantity and update DB
+  const updateQuantity = async (id, quantity) => {
+    const newCart = cart.map((item) =>
+      (item.productId || item.id) === id
+        ? { ...item, quantity: Math.max(1, quantity) }
+        : item
+    );
+    setCart(newCart);
+    await saveCart(newCart);
+  };
+
+  // Clear cart in state and MongoDB
   const clearCart = async () => {
+    const userId = localStorage.getItem("userId") || "guest";
     setCart([]);
-    await saveCart([]);
+    // Also clear the cart from MongoDB
+    await fetch(`http://localhost:5000/api/cart/${userId}`, {
+      method: "DELETE",
+    });
   };
 
   return (
-    <CartContext.Provider value={{ cart, addToCart, removeFromCart, updateQuantity, clearCart }}>
+    <CartContext.Provider
+      value={{
+        cart,
+        addToCart,
+        removeFromCart,
+        updateQuantity,
+        clearCart,
+      }}
+    >
       {children}
     </CartContext.Provider>
   );
