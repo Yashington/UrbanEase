@@ -1,10 +1,10 @@
 const JWTService = require('../utils/jwt');
 const User = require('../models/User');
 
+// Middleware: Authenticate user via JWT
 const authenticate = async (req, res, next) => {
   try {
     const authHeader = req.header('Authorization');
-    
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return res.status(401).json({ 
         success: false, 
@@ -13,10 +13,18 @@ const authenticate = async (req, res, next) => {
     }
 
     const token = authHeader.substring(7);
-    const decoded = JWTService.verifyToken(token);
-    
+    let decoded;
+    try {
+      decoded = JWTService.verifyToken(token);
+    } catch (err) {
+      return res.status(401).json({ 
+        success: false, 
+        message: 'Invalid or expired token.' 
+      });
+    }
+
     const user = await User.findById(decoded.id);
-    if (!user) {
+    if (!user || !user.isActive) {
       return res.status(401).json({ 
         success: false, 
         message: 'Invalid token or user not found.' 
@@ -28,12 +36,13 @@ const authenticate = async (req, res, next) => {
   } catch (error) {
     res.status(401).json({ 
       success: false, 
-      message: 'Invalid token.', 
+      message: 'Authentication error.',
       error: error.message 
     });
   }
 };
 
+// Middleware: Authorize by user role(s)
 const authorize = (...roles) => {
   return (req, res, next) => {
     if (!req.user) {
@@ -42,16 +51,38 @@ const authorize = (...roles) => {
         message: 'Authentication required.' 
       });
     }
-
     if (!roles.includes(req.user.role)) {
       return res.status(403).json({ 
         success: false, 
         message: 'Insufficient permissions.' 
       });
     }
-
     next();
   };
 };
 
-module.exports = { authenticate, authorize };
+// Optional: Middleware for optional authentication (public endpoints)
+const optionalAuth = async (req, res, next) => {
+  try {
+    const authHeader = req.header('Authorization');
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      let decoded;
+      try {
+        decoded = JWTService.verifyToken(token);
+      } catch (err) {
+        // Ignore token errors for optional auth
+        return next();
+      }
+      const user = await User.findById(decoded.id);
+      if (user && user.isActive) {
+        req.user = user;
+      }
+    }
+    next();
+  } catch (error) {
+    next();
+  }
+};
+
+module.exports = { authenticate, authorize, optionalAuth };

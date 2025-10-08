@@ -38,7 +38,6 @@ const userSchema = new mongoose.Schema({
 // Hash password before saving
 userSchema.pre('save', async function(next) {
   if (!this.isModified('password')) return next();
-  
   try {
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);
@@ -58,6 +57,12 @@ userSchema.methods.toJSON = function() {
   const user = this.toObject();
   delete user.password;
   return user;
+};
+
+// (Optional) Static method for admin to update user role
+userSchema.statics.updateUserRole = async function(userId, newRole) {
+  if (!['user', 'admin', 'moderator'].includes(newRole)) throw new Error('Invalid role');
+  return this.findByIdAndUpdate(userId, { role: newRole }, { new: true });
 };
 
 module.exports = mongoose.model('User', userSchema);

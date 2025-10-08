@@ -31,7 +31,8 @@ function CartPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#dbeafe] via-[#bfdbfe] to-[#93c5fd] py-12">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-[#dbeafe] via-[#bfdbfe] to-[#93c5fd] py-12">
+      {/* Shopping Bag Card */}
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl px-8 py-10 border border-blue-200">
         <h2 className="text-3xl font-bold mb-6 text-[#2563eb] tracking-wider">SHOPPING BAG</h2>
         <hr className="mb-6"/>
@@ -121,13 +122,7 @@ function CartPage() {
             Total: <span className="font-bold">₹{total.toFixed(2)}</span>
           </div>
           <div className="flex gap-4">
-            <button
-              className="px-6 py-3 bg-green-600 text-white rounded-lg shadow hover:bg-green-700 font-semibold transition text-lg"
-              onClick={() => navigate("/checkout")}
-              style={{ letterSpacing: "1px" }}
-            >
-              Proceed to Checkout
-            </button>
+            {/* Removed Proceed to Checkout button from box */}
             <button
               className="px-6 py-3 bg-red-600 text-white rounded-lg shadow hover:bg-red-700 font-semibold transition text-lg"
               onClick={clearCart}
@@ -137,6 +132,21 @@ function CartPage() {
             </button>
           </div>
         </div>
+      </div>
+
+      {/* Proceed to Checkout button below the shopping bag box */}
+      <div className="w-full flex justify-center mt-10">
+        <button
+          className="px-8 py-4 bg-green-600 text-white rounded-lg shadow hover:bg-green-700 font-semibold transition text-xl flex items-center gap-3"
+          onClick={() => navigate("/checkout")}
+          style={{ letterSpacing: "1px" }}
+        >
+          Proceed to Checkout
+          {/* Arrow Icon */}
+          <svg width="28" height="28" fill="none" stroke="white" strokeWidth="2.5" viewBox="0 0 24 24">
+            <path d="M5 12h14M13 6l6 6-6 6" stroke="white" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </button>
       </div>
     </div>
   );

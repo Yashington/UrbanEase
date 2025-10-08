@@ -34,7 +34,6 @@ export default function AuthPage({ setIsLoggedIn }) {
         throw new Error(data.message || "Login failed");
       }
       
-      // Store JWT tokens
       localStorage.setItem("accessToken", data.data.accessToken);
       localStorage.setItem("refreshToken", data.data.refreshToken);
       localStorage.setItem("userId", data.data.user._id);
@@ -80,15 +79,13 @@ export default function AuthPage({ setIsLoggedIn }) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#dbeafe] via-[#bfdbfe] to-[#93c5fd] py-12">
-      <div className="relative w-[900px] h-[500px] rounded-2xl shadow-2xl overflow-hidden bg-white flex">
-        {/* Animated panels */}
-        <div
-          className={`absolute inset-0 flex transition-transform duration-500 ease-in-out ${isSignIn ? "" : "translate-x-[-100%]"}`}
-          style={{ zIndex: 2 }}
-        >
+    <div className="min-h-screen flex items-center justify-center bg-transparent py-12">
+      <div className="relative w-[900px] h-[500px] rounded-2xl shadow-2xl overflow-hidden flex items-center justify-center"
+        style={{ background: "none" }}>
+        <div className="flex w-full h-full" style={{ borderRadius: "20px", overflow: "hidden" }}>
           {/* Sign In Panel */}
-          <div className="w-1/2 flex flex-col justify-center items-center px-14 bg-white">
+          <div className="w-1/2 flex flex-col justify-center items-center px-14"
+            style={{ background: "rgba(234,242,254,0.96)" }}>
             <h2 className="font-bold text-3xl mb-6 text-gray-800">Sign in</h2>
             <div className="flex space-x-6 mb-6">
               <button className="bg-gray-100 p-3 rounded-full text-[#2563eb] hover:bg-blue-100 transition-colors">
@@ -138,10 +135,11 @@ export default function AuthPage({ setIsLoggedIn }) {
               </button>
             </form>
           </div>
-          {/* Side Panel for Sign Up */}
-          <div className="w-1/2 flex flex-col justify-center items-center px-14 bg-gradient-to-br from-[#bfdbfe] to-[#93c5fd] text-white">
-            <h2 className="font-bold text-3xl mb-4">Hello, Friend!</h2>
-            <p className="mb-10 text-center text-lg font-medium max-w-[300px]">
+          {/* Sign Up Panel */}
+          <div className="w-1/2 flex flex-col justify-center items-center px-14"
+            style={{ background: "rgba(116,166,218,0.96)" }}>
+            <h2 className="font-bold text-3xl mb-4 text-white">HELLO, FRIEND!</h2>
+            <p className="mb-10 text-center text-lg font-medium max-w-[300px] text-white">
               Enter your personal details and start your journey with us
             </p>
             <button
@@ -156,15 +154,16 @@ export default function AuthPage({ setIsLoggedIn }) {
             </button>
           </div>
         </div>
-
+        {/* Slide-over animation for sign up/sign in */}
         <div
           className={`absolute inset-0 flex transition-transform duration-500 ease-in-out ${isSignIn ? "translate-x-full" : ""}`}
           style={{ zIndex: 1 }}
         >
           {/* Side Panel for Sign In */}
-          <div className="w-1/2 flex flex-col justify-center items-center px-14 bg-gradient-to-br from-[#bfdbfe] to-[#93c5fd] text-white">
-            <h2 className="font-bold text-3xl mb-4">Welcome Back!</h2>
-            <p className="mb-10 text-center text-lg font-medium max-w-[300px]">
+          <div className="w-1/2 flex flex-col justify-center items-center px-14"
+            style={{ background: "rgba(116,166,218,0.96)" }}>
+            <h2 className="font-bold text-3xl mb-4 text-white">Welcome Back!</h2>
+            <p className="mb-10 text-center text-lg font-medium max-w-[300px] text-white">
               To keep connected with us please login with your personal info
             </p>
             <button
@@ -178,8 +177,9 @@ export default function AuthPage({ setIsLoggedIn }) {
               SIGN IN
             </button>
           </div>
-          {/* Sign Up Panel */}
-          <div className="w-1/2 flex flex-col justify-center items-center px-14 bg-white">
+          {/* Sign Up Form Panel */}
+          <div className="w-1/2 flex flex-col justify-center items-center px-14"
+            style={{ background: "rgba(234,242,254,0.96)" }}>
             <h2 className="font-bold text-3xl mb-6 text-gray-800">Create Account</h2>
             <div className="flex space-x-6 mb-6">
               <button className="bg-gray-100 p-3 rounded-full text-[#2563eb] hover:bg-blue-100 transition-colors">

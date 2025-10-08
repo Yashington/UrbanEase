@@ -13,7 +13,6 @@ export function CartProvider({ children }) {
         const response = await fetch(`http://localhost:5000/api/cart/${userId}`);
         if (response.ok) {
           const data = await response.json();
-          // The API returns a cart object or { userId, items: [] }
           setCart(data.items || []);
         } else {
           setCart([]);
@@ -43,6 +42,12 @@ export function CartProvider({ children }) {
 
   // Add product to cart and update DB
   const addToCart = async (product) => {
+    const accessToken = localStorage.getItem("accessToken");
+    if (!accessToken) {
+      alert("Please log in first to add items to your cart.");
+      window.location.href = "/auth";
+      return;
+    }
     const newCart = [...cart];
     const exists = newCart.find((item) => item.productId === product.id || item.id === product.id);
     if (exists) {
@@ -50,7 +55,7 @@ export function CartProvider({ children }) {
     } else {
       newCart.push({
         ...product,
-        productId: product.id, // Ensure productId field for backend
+        productId: product.id,
         quantity: 1,
       });
     }

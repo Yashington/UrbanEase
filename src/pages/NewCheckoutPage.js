@@ -4,6 +4,17 @@ import { useNavigate } from "react-router-dom";
 
 const API_URL = "http://localhost:5000/api/orders";
 
+// Helper for protected API requests
+const apiFetch = async (url, options = {}) => {
+  const token = localStorage.getItem("accessToken");
+  const headers = {
+    ...(options.headers || {}),
+    "Content-Type": "application/json",
+    ...(token ? { "Authorization": `Bearer ${token}` } : {})
+  };
+  return fetch(url, { ...options, headers });
+};
+
 export default function NewCheckoutPage() {
   const { cart, clearCart } = useCart();
   const navigate = useNavigate();
@@ -37,7 +48,7 @@ export default function NewCheckoutPage() {
       const orderData = {
         userId,
         products: cart.map(item => ({
-          productId: item.productId || item.id, // Ensure productId field for backend
+          productId: item.productId || item.id,
           quantity: item.quantity,
           price: item.price,
           title: item.title,
@@ -54,12 +65,9 @@ export default function NewCheckoutPage() {
         }
       };
 
-      const response = await fetch(API_URL, {
+      // Use helper for JWT header
+      const response = await apiFetch(API_URL, {
         method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${accessToken}`
-        },
         body: JSON.stringify(orderData),
       });
 
@@ -79,7 +87,11 @@ export default function NewCheckoutPage() {
       setError(err.message || "Failed to place order. Please try again.");
       
       // If token expired, redirect to login
-      if (err.message.includes("token") || err.message.includes("Unauthorized")) {
+      if (
+        err.message.toLowerCase().includes("token") ||
+        err.message.toLowerCase().includes("unauthorized") ||
+        err.message.toLowerCase().includes("jwt")
+      ) {
         localStorage.removeItem("accessToken");
         localStorage.removeItem("refreshToken");
         navigate("/auth");
@@ -88,6 +100,8 @@ export default function NewCheckoutPage() {
       setLoading(false);
     }
   };
+
+  // ...rest of your component stays the same!
 
   if (orderSuccess) {
     return (

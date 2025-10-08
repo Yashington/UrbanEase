@@ -65,11 +65,22 @@ const orderSchema = new mongoose.Schema({
 });
 
 // Generate order number before saving
-orderSchema.pre('save', function(next) {
+orderSchema.pre('save', async function(next) {
   if (!this.orderNumber) {
-    this.orderNumber = 'ORD-' + Date.now() + '-' + Math.random().toString(36).substr(2, 6).toUpperCase();
+    // Extra entropy for uniqueness: add userId and random
+    this.orderNumber = 'ORD-' + Date.now() + '-' + Math.random().toString(36).substr(2, 6).toUpperCase() + '-' + this.userId.toString().slice(-4);
   }
   next();
 });
+
+// (Optional) Static method to fetch all orders for admin
+orderSchema.statics.fetchAllOrders = function() {
+  return this.find({}).sort({ createdAt: -1 });
+};
+
+// (Optional) Static method to fetch orders by user
+orderSchema.statics.fetchUserOrders = function(userId) {
+  return this.find({ userId }).sort({ createdAt: -1 });
+};
 
 module.exports = mongoose.model('Order', orderSchema);
