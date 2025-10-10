@@ -1,4 +1,4 @@
-import React, { useState, lazy, Suspense, useMemo } from "react";
+import React, { useState, lazy, Suspense, useMemo, useEffect, useContext } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Footer from "./components/Footer";
 import FeaturedCollection from "./pages/FeaturedCollection";
@@ -10,13 +10,13 @@ import { ThemeProvider } from "./context/ThemeContext";
 import Navbar from "./components/Navbar";
 import Home from "./pages/Home";
 import ThemeToggle from "./components/ThemeToggle";
-import { io } from "socket.io-client"; // NEW: import socket.io-client
+import { io } from "socket.io-client"; // import socket.io-client
 
 // Lazy load components
 const ProductDetailPage = lazy(() => import("./pages/ProductDetailPage"));
 const CheckoutPage = lazy(() => import("./pages/NewCheckoutPage"));
 
-// NEW: Create a Socket.IO context
+// Create a Socket.IO context
 export const SocketContext = React.createContext(null);
 
 function App() {
@@ -27,12 +27,30 @@ function App() {
   });
 
   // Update localStorage when login status changes
-  React.useEffect(() => {
+  useEffect(() => {
     localStorage.setItem("isLoggedIn", isLoggedIn);
   }, [isLoggedIn]);
 
-  // NEW: Memoize socket instance so it's only created once
+  // Memoize socket instance so it's only created once
   const socket = useMemo(() => io("http://localhost:5000"), []);
+
+  // Join the user's room for real-time order status updates
+  useEffect(() => {
+    const userId = localStorage.getItem("userId");
+    if (userId && socket) {
+      socket.emit("join", userId);
+    }
+  }, [socket, isLoggedIn]);
+
+  // Listen for order status update globally, show an alert (replace with toast for better UX)
+  useEffect(() => {
+    if (!socket) return;
+    const handleOrderStatusUpdate = (data) => {
+      alert(`Order ${data.orderId} status updated: ${data.status}`);
+    };
+    socket.on("order status update", handleOrderStatusUpdate);
+    return () => socket.off("order status update", handleOrderStatusUpdate);
+  }, [socket]);
 
   return (
     <ThemeProvider>

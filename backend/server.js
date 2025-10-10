@@ -3,18 +3,18 @@ const mongoose = require("mongoose");
 const cors = require("cors");
 require("dotenv").config();
 
-const http = require("http");           // NEW: Import http
-const { Server } = require("socket.io");// NEW: Import socket.io
+const http = require("http");           // Import http
+const { Server } = require("socket.io");// Import socket.io
 
-// Import routes
+// Import routes (orderRoutes will be initialized later)
 const authRoutes = require("./routes/auth");
 const productRoutes = require("./routes/products");
 const cartRoutes = require("./routes/cart");
-const orderRoutes = require("./routes/orders");
+const orderRoutesFn = require("./routes/orders"); // Updated for Socket.IO
 
 const app = express();
-const server = http.createServer(app);    // NEW: Create HTTP server
-const io = new Server(server, {           // NEW: Create Socket.IO server
+const server = http.createServer(app);    // Create HTTP server
+const io = new Server(server, {
   cors: {
     origin: "http://localhost:3000",
     credentials: true,
@@ -44,11 +44,33 @@ app.get('/health', (req, res) => {
   });
 });
 
+// --- Socket.IO setup for real-time communication ---
+io.on("connection", (socket) => {
+  console.log("🟢 New client connected:", socket.id);
+
+  // Join user room for targeted notifications
+  socket.on("join", (userId) => {
+    socket.join(userId);
+    console.log(`User ${userId} joined room ${userId}`);
+  });
+
+  // Example event: chat message
+  socket.on("chat message", (msg) => {
+    console.log("💬 Message received:", msg);
+    io.emit("chat message", msg);
+  });
+
+  socket.on("disconnect", () => {
+    console.log("🔴 Client disconnected:", socket.id);
+  });
+});
+// ------------------------------------------------------
+
 // API routes
 app.use("/api/auth", authRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/cart", cartRoutes);
-app.use("/api/orders", orderRoutes);
+app.use("/api/orders", orderRoutesFn(io)); // Pass io to orderRoutes!
 
 // 404 handler
 app.use((req, res) => {
@@ -70,30 +92,13 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 5000;
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/urbanease';
 
-// --- NEW: Socket.IO setup for real-time communication ---
-io.on("connection", (socket) => {
-  console.log("🟢 New client connected:", socket.id);
-
-  // Example event: chat message
-  socket.on("chat message", (msg) => {
-    console.log("💬 Message received:", msg);
-    // Broadcast to all clients
-    io.emit("chat message", msg);
-  });
-
-  socket.on("disconnect", () => {
-    console.log("🔴 Client disconnected:", socket.id);
-  });
-});
-// ------------------------------------------------------
-
 // Connect to MongoDB and start server
 mongoose.connect(MONGO_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 })
 .then(() => {
-  server.listen(PORT, () => { // CHANGE: use server.listen instead of app.listen
+  server.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
     console.log(`🗄️  Database: Connected to MongoDB`);
     console.log(`🔗 API Base URL: http://localhost:${PORT}/api`);

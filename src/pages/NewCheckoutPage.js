@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import { useCart } from "../context/CartContext";
 import { useNavigate } from "react-router-dom";
+import { SocketContext } from "../App"; // <-- Import SocketContext
 
 const API_URL = "http://localhost:5000/api/orders";
 
@@ -21,6 +22,8 @@ export default function NewCheckoutPage() {
   const [loading, setLoading] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState(false);
   const [error, setError] = useState("");
+  const [orderStatusUpdate, setOrderStatusUpdate] = useState(null); // <-- New state
+  const socket = useContext(SocketContext);
 
   const user = {
     name: "Yash Chikhale",
@@ -30,6 +33,24 @@ export default function NewCheckoutPage() {
   };
 
   const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+
+  // Join the user's room for order updates when component mounts
+  useEffect(() => {
+    const userId = localStorage.getItem("userId");
+    if (userId && socket) {
+      socket.emit("join", userId);
+    }
+  }, [socket]);
+
+  // Listen for real-time order status updates
+  useEffect(() => {
+    if (!socket) return;
+    const handleOrderStatusUpdate = (data) => {
+      setOrderStatusUpdate(data);
+    };
+    socket.on("order status update", handleOrderStatusUpdate);
+    return () => socket.off("order status update", handleOrderStatusUpdate);
+  }, [socket]);
 
   const handlePlaceOrder = async () => {
     setLoading(true);
@@ -100,6 +121,17 @@ export default function NewCheckoutPage() {
       setLoading(false);
     }
   };
+
+  // --- New: Show real-time order status update toast/alert ---
+  useEffect(() => {
+    if (orderStatusUpdate) {
+      alert(
+        `Order ${orderStatusUpdate.orderId} status updated: ${orderStatusUpdate.status}`
+      );
+      // You can replace alert with a toast library for better UX
+      setOrderStatusUpdate(null);
+    }
+  }, [orderStatusUpdate]);
 
   // ...rest of your component stays the same!
 
