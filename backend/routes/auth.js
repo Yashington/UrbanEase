@@ -5,10 +5,15 @@ const { authenticate } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Register user
+// Simple ping to verify router is mounted
+router.get('/ping', (req, res) => {
+  res.json({ success: true, route: '/api/auth/ping' });
+});
+
+// Register user (regular signup)
 router.post('/signup', async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    let { name, email, password } = req.body;
 
     // Validation
     if (!name || !email || !password) {
@@ -24,6 +29,9 @@ router.post('/signup', async (req, res) => {
         message: 'Password must be at least 6 characters'
       });
     }
+
+    // Normalize email
+    email = String(email).toLowerCase().trim();
 
     // Check if user already exists
     const existingUser = await User.findOne({ email });
@@ -59,10 +67,60 @@ router.post('/signup', async (req, res) => {
   }
 });
 
+// Admin signup (only if no admin exists, requires secret)
+router.post('/signup-admin', async (req, res) => {
+  try {
+    let { name, email, password, secret } = req.body;
+
+    // SECURITY: Require secret for admin creation
+    if (secret !== process.env.ADMIN_SECRET) {
+      return res.status(403).json({ success: false, message: 'Invalid admin secret.' });
+    }
+
+    // Normalize email
+    email = String(email).toLowerCase().trim();
+
+    // Check if any admin exists
+    const existingAdmin = await User.findOne({ role: 'admin' });
+    if (existingAdmin) {
+      return res.status(400).json({ success: false, message: 'Admin already exists.' });
+    }
+
+    // Also avoid duplicate by email
+    const existingByEmail = await User.findOne({ email });
+    if (existingByEmail) {
+      return res.status(400).json({ success: false, message: 'User already exists with this email' });
+    }
+
+    // Create admin user
+    const user = new User({ name, email, password, role: 'admin' });
+    await user.save();
+
+    // Generate tokens
+    const tokens = JWTService.generateTokens(user);
+
+    res.status(201).json({
+      success: true,
+      message: 'Admin user created successfully',
+      data: {
+        user: user.toJSON(),
+        ...tokens
+      }
+    });
+  } catch (error) {
+    console.error('Admin signup error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error creating admin user',
+      error: error.message
+    });
+  }
+});
+
 // Login user
 router.post('/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    let { email, password } = req.body;
 
     // Validation
     if (!email || !password) {
@@ -71,6 +129,9 @@ router.post('/login', async (req, res) => {
         message: 'Email and password are required'
       });
     }
+
+    // Normalize email
+    email = String(email).toLowerCase().trim();
 
     // Find user
     const user = await User.findOne({ email });

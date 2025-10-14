@@ -1,3 +1,40 @@
+/* Global unified app background and reset */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+:root {
+  /* Solid blue used across the whole app */
+  --app-bg: #dbeafe;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  background-color: var(--app-bg);
+}
+
+body {
+  margin: 0;
+  font-family: 'Times New Roman', Times, serif;
+}
+
+/* Utility to apply the app background */
+.bg-app {
+  background-color: var(--app-bg) !important;
+}
+
+/* Disable ALL Tailwind gradient backgrounds app-wide */
+[class*="bg-gradient-to-"] {
+  background-image: none !important;
+  background-color: var(--app-bg) !important;
+}
+
+/* ---------------- Existing (kept) styles ---------------- */
+
 .App {
   text-align: center;
 }
@@ -29,16 +66,8 @@
 }
 
 @keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-body {
-  font-family: 'Times New Roman', Times, serif;
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 /* Apply a serif font to headings */
