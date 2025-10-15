@@ -1,6 +1,6 @@
 import React, { useState, lazy, Suspense, useMemo, useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import "./App.css"; // IMPORTANT: ensure global background + overrides are loaded
+import "./App.css";
 import Footer from "./components/Footer";
 import FeaturedCollection from "./pages/FeaturedCollection";
 import ProductsPage from "./pages/ProductsPage";
@@ -21,12 +21,20 @@ import UserProfile from "./pages/UserProfile";
 import MyOrders from "./pages/MyOrders";
 import Notifications from "./pages/Notifications";
 
-// Lazy load components
+// Lazy load heavy pages
 const ProductDetailPage = lazy(() => import("./pages/ProductDetailPage"));
 const CheckoutPage = lazy(() => import("./pages/NewCheckoutPage"));
+const PaymentPage = lazy(() => import("./pages/PaymentPage")); // Payment choice: UPI or COD
+const UpiPayment = lazy(() => import("./pages/UpiPayment"));   // NEW: UPI scan + confirm page
 
 // Create a Socket.IO context
 export const SocketContext = React.createContext(null);
+
+// Prefer env-based socket/API URL for easy local vs prod switching
+const SOCKET_URL =
+  process.env.REACT_APP_SOCKET_URL ||
+  process.env.REACT_APP_API_URL ||
+  "http://localhost:5000";
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(() => {
@@ -38,17 +46,34 @@ function App() {
     localStorage.setItem("isLoggedIn", isLoggedIn);
   }, [isLoggedIn]);
 
-  const socket = useMemo(() => io("http://localhost:5000"), []);
+  // Single socket instance, credentials enabled; auto-closed on unmount
+  const socket = useMemo(
+    () =>
+      io(SOCKET_URL, {
+        withCredentials: true,
+        transports: ["websocket", "polling"],
+      }),
+    []
+  );
 
   // Join the user's room for real-time order status updates
   useEffect(() => {
-    const userId = localStorage.getItem("userId");
-    if (userId && socket) {
-      socket.emit("join", userId);
+    const joinIfPossible = () => {
+      const userId = localStorage.getItem("userId");
+      if (userId) socket.emit("join", userId);
+    };
+
+    if (socket?.connected) {
+      joinIfPossible();
     }
+    socket.on("connect", joinIfPossible);
+
+    return () => {
+      socket.off("connect", joinIfPossible);
+    };
   }, [socket, isLoggedIn]);
 
-  // Listen for order status update globally
+  // Listen for order status update globally (you can replace with a toast)
   useEffect(() => {
     if (!socket) return;
     const handleOrderStatusUpdate = (data) => {
@@ -58,28 +83,51 @@ function App() {
     return () => socket.off("order status update", handleOrderStatusUpdate);
   }, [socket]);
 
+  // Optional: listen for generic notifications
+  useEffect(() => {
+    if (!socket) return;
+    const onNotif = (n) => console.log("notification:new", n);
+    socket.on("notification:new", onNotif);
+    return () => socket.off("notification:new", onNotif);
+  }, [socket]);
+
+  // Clean up socket on app unmount (dev hot-reload friendly)
+  useEffect(() => {
+    return () => {
+      try {
+        socket?.close();
+      } catch {}
+    };
+  }, [socket]);
+
   return (
     <ThemeProvider>
       <CartProvider>
-        {/* Provide socket context to all components */}
         <SocketContext.Provider value={socket}>
           <Router>
-            {/* Use a single solid background class for the whole app */}
             <div className="min-h-screen flex flex-col bg-app">
               <Navbar isLoggedIn={isLoggedIn} setIsLoggedIn={setIsLoggedIn} />
               <ThemeToggle />
-              {/* Keep the top padding to clear the fixed navbar */}
               <div className="flex-1 pt-[90px]">
-                <Suspense fallback={<div>Loading...</div>}>
+                <Suspense fallback={<div className="p-6">Loading...</div>}>
                   <Routes>
                     <Route path="/" element={<Home />} />
                     <Route path="/featured" element={<FeaturedCollection />} />
                     <Route path="/products" element={<ProductsPage />} />
                     <Route path="/products/:id" element={<ProductDetailPage />} />
                     <Route path="/cart" element={<CartPage />} />
-                    <Route path="/auth" element={<AuthPage setIsLoggedIn={setIsLoggedIn} />} />
-                    <Route path="/login" element={<AuthPage setIsLoggedIn={setIsLoggedIn} />} />
-                    <Route path="/signup" element={<AuthPage setIsLoggedIn={setIsLoggedIn} />} />
+                    <Route
+                      path="/auth"
+                      element={<AuthPage setIsLoggedIn={setIsLoggedIn} />}
+                    />
+                    <Route
+                      path="/login"
+                      element={<AuthPage setIsLoggedIn={setIsLoggedIn} />}
+                    />
+                    <Route
+                      path="/signup"
+                      element={<AuthPage setIsLoggedIn={setIsLoggedIn} />}
+                    />
                     <Route path="/checkout" element={<CheckoutPage />} />
 
                     {/* User protected routes */}
@@ -87,6 +135,9 @@ function App() {
                       <Route path="/profile" element={<UserProfile />} />
                       <Route path="/orders" element={<MyOrders />} />
                       <Route path="/notifications" element={<Notifications />} />
+                      {/* Payment flow */}
+                      <Route path="/checkout/payment/:orderId" element={<PaymentPage />} />
+                      <Route path="/checkout/payment/upi/:orderId" element={<UpiPayment />} />
                     </Route>
 
                     {/* Admin-protected route */}

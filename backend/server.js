@@ -1,136 +1,149 @@
+/**
+ * UrbanEase backend server (backend/server.js)
+ * - Route imports fixed to use ./routes/*
+ * - Loads .env from backend/.env or falls back to ../.env
+ * - Uses FRONTEND_URL(S) for CORS and Socket.IO
+ * - Uses MONGO_URI (defaults to local 127.0.0.1 to avoid IPv6 issues)
+ * - Wires Orders, Products, Auth, Cart, Notifications, and Payments routes
+ */
+
+const path = require("path");
+
+// Load env from backend/.env, else try parent ../.env
+let loaded = require("dotenv").config({ path: path.resolve(__dirname, ".env") });
+if (loaded?.error) {
+  loaded = require("dotenv").config({ path: path.resolve(__dirname, "../.env") });
+}
+
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
-require("dotenv").config();
-
 const http = require("http");
 const { Server } = require("socket.io");
 
-// Import routes
+// Import routes from backend/routes (relative to this file)
 const authRoutes = require("./routes/auth");
 const productRoutes = require("./routes/products");
 const cartRoutes = require("./routes/cart");
-const orderRoutesFn = require("./routes/orders"); // orders exports a function that accepts io
+const orderRoutesFn = require("./routes/orders"); // exports a function (io) => router
+const notificationsRoutes = require("./routes/notifications"); // NEW
+const paymentRoutes = require("./routes/payments"); // NEW
 
 const app = express();
 const server = http.createServer(app);
 
-// Use env for frontend origin
-const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
+// Env
+const PORT = Number(process.env.PORT) || 5000;
+// Support comma-separated origins via FRONTEND_URL or FRONTEND_URLS
+const ORIGINS_ENV = process.env.FRONTEND_URLS || process.env.FRONTEND_URL || "http://localhost:3000";
+const ALLOWED_ORIGINS = ORIGINS_ENV.split(",").map((s) => s.trim());
+const MONGO_URI = process.env.MONGO_URI || "mongodb://127.0.0.1:27017/urbanease";
 
-// Socket.IO server
+// Socket.IO
 const io = new Server(server, {
   cors: {
-    origin: FRONTEND_URL,
+    origin: ALLOWED_ORIGINS,
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
   },
 });
 
-// Make io available elsewhere if needed
+// Expose io if needed elsewhere (used by payments route and others)
 app.set("io", io);
 
-// Enable CORS for REST API
+// CORS for REST API
 app.use(
   cors({
-    origin: FRONTEND_URL,
+    origin: ALLOWED_ORIGINS,
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 
-// Basic request logger (useful while wiring new routes)
-app.use((req, res, next) => {
+// Basic logger
+app.use((req, _res, next) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
   next();
 });
 
-// Body parsing middleware
+// Body parsers
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
-// Health check endpoint
-app.get("/health", (req, res) => {
-  res.json({
-    success: true,
-    message: "Server is running",
-    timestamp: new Date().toISOString(),
-  });
+// Health check
+app.get("/health", (_req, res) => {
+  res.json({ success: true, message: "Server is running", timestamp: new Date().toISOString() });
 });
 
-// --- Socket.IO setup for real-time communication ---
+// Socket rooms
 io.on("connection", (socket) => {
-  console.log("🟢 New client connected:", socket.id);
-
-  // Users join a room matching their userId for targeted notifications
+  console.log("🟢 Client connected:", socket.id);
   socket.on("join", (userId) => {
     if (!userId) return;
-    socket.join(userId);
+    socket.join(String(userId));
     console.log(`User ${userId} joined room ${userId}`);
   });
-
-  // Example broadcast event
-  socket.on("chat message", (msg) => {
-    console.log("💬 Message received:", msg);
-    io.emit("chat message", msg);
-  });
-
   socket.on("disconnect", () => {
     console.log("🔴 Client disconnected:", socket.id);
   });
 });
-// ------------------------------------------------------
 
-// API routes (ensure these are BEFORE the 404 handler)
-app.use("/api/auth", authRoutes);               // includes /signup, /login, and /signup-admin (with ADMIN_SECRET)
+// API routes
+app.use("/api/auth", authRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/cart", cartRoutes);
-app.use("/api/orders", orderRoutesFn(io));      // pass io so orders can emit status updates
+app.use("/api/orders", orderRoutesFn(io));
+app.use("/api/notifications", notificationsRoutes); // NEW
+app.use("/api/payments", paymentRoutes); // NEW
 
-// 404 handler (MUST be after all routes)
-app.use((req, res) => {
-  res.status(404).json({
-    success: false,
-    message: "Route not found",
-  });
-});
+// 404 handler
+app.use((req, res) => res.status(404).json({ success: false, message: "Route not found" }));
 
 // Global error handler
-app.use((err, req, res, next) => {
+// eslint-disable-next-line no-unused-vars
+app.use((err, _req, res, _next) => {
   console.error("Global error:", err);
-  res.status(err.status || 500).json({
-    success: false,
-    message: err.message || "Internal Server Error",
-  });
+  res.status(err.status || 500).json({ success: false, message: err.message || "Internal Server Error" });
 });
 
-const PORT = process.env.PORT || 5000;
-const MONGO_URI =
-  process.env.MONGO_URI || "mongodb://localhost:27017/urbanease";
-
-// Connect to MongoDB and start server
+// Start server after DB connects
 mongoose
-  .connect(MONGO_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  })
+  .connect(MONGO_URI)
   .then(() => {
+    console.log("🗄️  MongoDB connected");
     server.listen(PORT, () => {
-      console.log(`🚀 Server running on port ${PORT}`);
-      console.log(`🗄️  Database: Connected to MongoDB`);
+      console.log(`🚀 Server running on http://localhost:${PORT}`);
       console.log(`🔗 API Base URL: http://localhost:${PORT}/api`);
-      console.log(`🌐 CORS Frontend: ${FRONTEND_URL}`);
+      console.log(`🌐 CORS Frontend Origins: ${ALLOWED_ORIGINS.join(", ")}`);
       console.log("\n📋 Available routes:");
-      console.log("   - POST /api/auth/signup");
-      console.log("   - POST /api/auth/signup-admin   (requires ADMIN_SECRET)");
-      console.log("   - POST /api/auth/login");
-      console.log("   - GET  /api/auth/profile");
-      console.log("   - POST /api/orders");
-      console.log("   - GET  /api/orders/my-orders");
-      console.log("   - PATCH /api/orders/:id/status  (admin/moderator)");
-      console.log("   - GET  /api/cart/:userId");
+      console.log("   Auth:");
+      console.log("     - POST /api/auth/signup");
+      console.log("     - POST /api/auth/signup-admin   (requires ADMIN_SECRET)");
+      console.log("     - POST /api/auth/login");
+      console.log("     - GET  /api/auth/profile");
+      console.log("   Products:");
+      console.log("     - GET  /api/products                        (?includeExternal=true to merge external)");
+      console.log("     - GET  /api/products/:id");
+      console.log("   Cart:");
+      console.log("     - GET  /api/cart/:userId");
+      console.log("     - POST /api/cart/:userId/items");
+      console.log("   Orders:");
+      console.log("     - POST /api/orders");
+      console.log("     - GET  /api/orders/my-orders");
+      console.log("     - GET  /api/orders/:id");
+      console.log("     - PATCH /api/orders/:id/status              (admin/moderator)");
+      console.log("   Notifications:");
+      console.log("     - GET  /api/notifications                   (?page=&limit=&userId= for admins)");
+      console.log("     - GET  /api/notifications/unread-count");
+      console.log("     - PATCH /api/notifications/:id/read");
+      console.log("     - POST /api/notifications/mark-all-read");
+      console.log("   Payments (mock):");
+      console.log("     - POST /api/payments/initiate               (body: { orderId })");
+      console.log("     - POST /api/payments/confirm                (body: { orderId, method, reference?, proofDataUrl? })");
+      console.log("     - POST /api/payments/decline                (body: { orderId })");
+      console.log("     - POST /api/payments/select-cod             (body: { orderId })");
       console.log("🟣 Socket.IO enabled for real-time communication!");
     });
   })
@@ -138,3 +151,8 @@ mongoose
     console.error("❌ MongoDB connection error:", err);
     process.exit(1);
   });
+
+// Avoid silent exits during dev
+process.on("unhandledRejection", (reason) => {
+  console.error("Unhandled Rejection:", reason);
+});

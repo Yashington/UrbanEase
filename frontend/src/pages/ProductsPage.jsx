@@ -4,11 +4,16 @@ import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import { Link } from "react-router-dom";
 
-// Use backend REST API (MongoDB) instead of fakestoreapi
+// Use backend REST API (MongoDB)
 const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:5000";
 const API_URL = `${API_BASE}/api/products`;
 
+// Request everything from the server (we do client-side pagination)
+const FETCH_LIMIT = 1000;
+
 const PRODUCTS_PER_PAGE = 6;
+const PLACEHOLDER_IMG =
+  "https://via.placeholder.com/600x400/edf2f7/111111?text=No+Image";
 
 function ProductsPage() {
   const [products, setProducts] = useState([]);
@@ -30,21 +35,26 @@ function ProductsPage() {
   // Pagination state
   const [page, setPage] = useState(1);
 
-  // Fetch products from backend (MongoDB)
-  const fetchProducts = useCallback(() => {
+  // Fetch products from backend (MongoDB) with abort support
+  const fetchProducts = useCallback((signal) => {
     setLoading(true);
     setError("");
-    fetch(API_URL)
+
+    // Ask server to include EXTERNAL products too and return a large batch.
+    // Backend must support includeExternal=true to merge external sources.
+    const url = `${API_URL}?includeExternal=true&limit=${FETCH_LIMIT}`;
+
+    fetch(url, { signal })
       .then((res) => res.json())
       .then((data) => {
-        // Support both raw array and wrapped response shapes
         const list = Array.isArray(data)
           ? data
           : data?.data?.products || data?.products || [];
         setProducts(Array.isArray(list) ? list : []);
         setLoading(false);
       })
-      .catch(() => {
+      .catch((err) => {
+        if (err?.name === "AbortError") return;
         setError("Failed to load products.");
         setLoading(false);
       });
@@ -53,7 +63,9 @@ function ProductsPage() {
   useEffect(() => {
     document.title = "Product Listing - UrbanEase";
     if (searchInputRef.current) searchInputRef.current.focus();
-    fetchProducts();
+    const ac = new AbortController();
+    fetchProducts(ac.signal);
+    return () => ac.abort();
   }, [fetchProducts]);
 
   // Compute categories dynamically from products
@@ -80,7 +92,6 @@ function ProductsPage() {
 
   const handleAddToCart = useCallback(
     (product) => {
-      // Normalize id for cart compatibility
       const normalized = { ...product, id: product._id || product.id };
       addToCart(normalized);
     },
@@ -295,7 +306,9 @@ function ProductsPage() {
         {loading ? (
           <div
             className={
-              showGrid ? "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-10" : "flex flex-col gap-6"
+              showGrid
+                ? "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-10"
+                : "flex flex-col gap-6"
             }
           >
             {Array.from({ length: PRODUCTS_PER_PAGE }).map((_, idx) => (
@@ -313,7 +326,10 @@ function ProductsPage() {
           <div className="text-red-500 flex flex-col items-center gap-4">
             <span>Error: {error}</span>
             <button
-              onClick={fetchProducts}
+              onClick={() => {
+                const ac = new AbortController();
+                fetchProducts(ac.signal);
+              }}
               className="px-4 py-2 bg-blue-600 text-white rounded shadow hover:bg-blue-700"
               aria-label="Retry loading products"
             >
@@ -325,7 +341,9 @@ function ProductsPage() {
             {/* Grid/List render */}
             <div
               className={
-                showGrid ? "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-10" : "flex flex-col gap-6"
+                showGrid
+                  ? "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-10"
+                  : "flex flex-col gap-6"
               }
             >
               {paginatedProducts.map((product) => {
@@ -333,6 +351,8 @@ function ProductsPage() {
                 const productId = product._id || product.id;
                 const inStock =
                   typeof product.stock === "number" ? product.stock > 0 : true;
+
+                const imgSrc = product.image || PLACEHOLDER_IMG;
 
                 return showGrid ? (
                   // Grid Item
@@ -347,9 +367,10 @@ function ProductsPage() {
                         aria-label={`View details for ${product.title}`}
                       >
                         <img
-                          src={product.image}
+                          src={imgSrc}
                           alt={product.title}
                           className="w-full h-72 object-cover"
+                          onError={(e) => (e.currentTarget.src = PLACEHOLDER_IMG)}
                         />
                       </Link>
                       <span
@@ -400,9 +421,10 @@ function ProductsPage() {
                       aria-label={`View details for ${product.title}`}
                     >
                       <img
-                        src={product.image}
+                        src={imgSrc}
                         alt={product.title}
                         className="w-full h-full object-contain p-6"
+                        onError={(e) => (e.currentTarget.src = PLACEHOLDER_IMG)}
                       />
                     </Link>
                     <div className="flex-1 flex flex-col justify-between p-6">
