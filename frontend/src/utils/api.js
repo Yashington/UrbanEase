@@ -1,4 +1,4 @@
-const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:5000";
+const API_BASE = process.env.REACT_APP_API_URL || "https://urbanease-backend.onrender.com";
 
 export const apiFetch = async (path, options = {}) => {
   const token = localStorage.getItem("accessToken");

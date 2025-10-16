@@ -5,7 +5,7 @@ import "react-loading-skeleton/dist/skeleton.css";
 import { Link } from "react-router-dom";
 
 // Use backend REST API (MongoDB)
-const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:5000";
+const API_BASE = process.env.REACT_APP_API_URL || "https://urbanease-backend.onrender.com";
 const API_URL = `${API_BASE}/api/products`;
 
 // Request everything from the server (we do client-side pagination)

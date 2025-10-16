@@ -22,7 +22,7 @@ export const AuthProvider = ({ children }) => {
       if (!refreshToken) return;
 
       try {
-        const response = await fetch('http://localhost:5000/api/auth/refresh', {
+        const response = await fetch('https://urbanease-backend.onrender.com/api/auth/refresh', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ refreshToken })
@@ -57,7 +57,7 @@ export const AuthProvider = ({ children }) => {
       }
 
       try {
-        const response = await fetch('http://localhost:5000/api/auth/profile', {
+          const response = await fetch('https://urbanease-backend.onrender.com/api/auth/profile', {
           headers: { 'Authorization': `Bearer ${accessToken}` }
         });
 
@@ -80,7 +80,7 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
-      const response = await fetch('http://localhost:5000/api/auth/login', {
+      const response = await fetch('https://urbanease-backend.onrender.com/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
@@ -107,7 +107,7 @@ export const AuthProvider = ({ children }) => {
 
   const signup = async (name, email, password) => {
     try {
-      const response = await fetch('http://localhost:5000/api/auth/signup', {
+      const response = await fetch('https://urbanease-backend.onrender.com/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, email, password })
@@ -135,7 +135,7 @@ export const AuthProvider = ({ children }) => {
   const logout = async () => {
     try {
       if (accessToken) {
-        await fetch('http://localhost:5000/api/auth/logout', {
+        await fetch('https://urbanease-backend.onrender.com/api/auth/logout', {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${accessToken}` }
         });
@@ -172,7 +172,7 @@ export const AuthProvider = ({ children }) => {
     // If token expired, try to refresh
     if (response.status === 401 && refreshToken) {
       try {
-        const refreshResponse = await fetch('http://localhost:5000/api/auth/refresh', {
+        const refreshResponse = await fetch('https://urbanease-backend.onrender.com/api/auth/refresh', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ refreshToken })

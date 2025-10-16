@@ -5,7 +5,7 @@ import "react-loading-skeleton/dist/skeleton.css";
 import { useCart } from "../context/CartContext";
 
 // Use env-based backend URL for easy local/prod switching
-const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:5000";
+const API_BASE = process.env.REACT_APP_API_URL || "https://urbanease-backend.onrender.com";
 const API_URL = `${API_BASE}/api/products`;
 const PLACEHOLDER_IMG =
   "https://via.placeholder.com/600x600/edf2f7/111111?text=No+Image";

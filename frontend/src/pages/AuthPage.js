@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { FaFacebookF, FaGoogle, FaLinkedinIn } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 
-const API_URL = "http://localhost:5000/api/auth";
+const API_URL = "https://urbanease-backend.onrender.com/api/auth";
 
 export default function AuthPage({ setIsLoggedIn }) {
   const [isSignIn, setIsSignIn] = useState(true);

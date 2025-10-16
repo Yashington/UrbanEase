@@ -10,7 +10,7 @@ export function CartProvider({ children }) {
     const loadCart = async () => {
       try {
         const userId = localStorage.getItem("userId") || "guest";
-        const response = await fetch(`http://localhost:5000/api/cart/${userId}`);
+        const response = await fetch(`https://urbanease-backend.onrender.com/api/cart/${userId}`);
         if (response.ok) {
           const data = await response.json();
           setCart(data.items || []);
@@ -30,7 +30,7 @@ export function CartProvider({ children }) {
   const saveCart = async (newCart) => {
     try {
       const userId = localStorage.getItem("userId") || "guest";
-      await fetch(`http://localhost:5000/api/cart/${userId}`, {
+      await fetch(`https://urbanease-backend.onrender.com/api/cart/${userId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ items: newCart }),
@@ -88,7 +88,7 @@ export function CartProvider({ children }) {
     const userId = localStorage.getItem("userId") || "guest";
     setCart([]);
     // Also clear the cart from MongoDB
-    await fetch(`http://localhost:5000/api/cart/${userId}`, {
+    await fetch(`https://urbanease-backend.onrender.com/api/cart/${userId}`, {
       method: "DELETE",
     });
   };

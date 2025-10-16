@@ -13,7 +13,7 @@ export default function MyOrders() {
     setError("");
     try {
       const token = localStorage.getItem("accessToken");
-      const res = await fetch("http://localhost:5000/api/orders/my-orders", {
+      const res = await fetch("https://urbanease-backend.onrender.com/api/orders/my-orders", {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,

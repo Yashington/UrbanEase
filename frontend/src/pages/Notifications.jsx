@@ -2,7 +2,7 @@ import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { SocketContext } from "../App";
 
 const CACHE_KEY = "notifications_cache_v2";
-const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:5000";
+const API_BASE = process.env.REACT_APP_API_URL || "https://urbanease-backend.onrender.com";
 const API_URL = `${API_BASE}/api/notifications`;
 
 export default function Notifications() {

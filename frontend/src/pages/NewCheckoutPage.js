@@ -3,7 +3,7 @@ import { useCart } from "../context/CartContext";
 import { useNavigate } from "react-router-dom";
 import { SocketContext } from "../App"; // <-- SocketContext for realtime
 
-const API_URL = "http://localhost:5000/api/orders";
+const API_URL = "https://urbanease-backend.onrender.com/api/orders";
 
 // Helper for protected API requests
 const apiFetch = async (url, options = {}) => {

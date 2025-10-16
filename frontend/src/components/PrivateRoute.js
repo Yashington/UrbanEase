@@ -19,7 +19,7 @@ export default function PrivateRoute() {
           }
           return;
         }
-        const res = await fetch("http://localhost:5000/api/auth/profile", {
+        const res = await fetch("https://urbanease-backend.onrender.com/api/auth/profile", {
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
