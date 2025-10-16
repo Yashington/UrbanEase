@@ -1,155 +1,150 @@
 /**
  * UrbanEase backend server (backend/server.js)
- * - Route imports fixed to use ./routes/*
- * - Loads .env from backend/.env or falls back to ../.env
- * - Uses FRONTEND_URL(S) for CORS and Socket.IO
- * - Uses MONGO_URI (defaults to local 127.0.0.1 to avoid IPv6 issues)
- * - Wires Orders, Products, Auth, Cart, Notifications, and Payments routes
+ * Production-ready for Render deployment + local dev
+ * - Fixes MongoDB connection (works with Atlas, avoids localhost fallback)
+ * - Loads .env only in development
+ * - Handles CORS with regex for Vercel previews
+ * - Configured for Express + Socket.IO
  */
 
 const path = require("path");
-
-// Load env from backend/.env, else try parent ../.env
-let loaded = require("dotenv").config({ path: path.resolve(__dirname, ".env") });
-if (loaded?.error) {
-  loaded = require("dotenv").config({ path: path.resolve(__dirname, "../.env") });
-}
-
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const http = require("http");
 const { Server } = require("socket.io");
 
-// Import routes from backend/routes (relative to this file)
+// ✅ Load .env only in local development (Render injects env automatically)
+if (process.env.NODE_ENV !== "production") {
+  let loaded = require("dotenv").config({ path: path.resolve(__dirname, ".env") });
+  if (loaded?.error) {
+    loaded = require("dotenv").config({ path: path.resolve(__dirname, "../.env") });
+  }
+}
+
+// Import routes
 const authRoutes = require("./routes/auth");
 const productRoutes = require("./routes/products");
 const cartRoutes = require("./routes/cart");
-const orderRoutesFn = require("./routes/orders"); // exports a function (io) => router
-const notificationsRoutes = require("./routes/notifications"); // NEW
-const paymentRoutes = require("./routes/payments"); // NEW
+const orderRoutesFn = require("./routes/orders"); // exports (io) => router
+const notificationsRoutes = require("./routes/notifications");
+const paymentRoutes = require("./routes/payments");
 
 const app = express();
 const server = http.createServer(app);
 
-// Env
-const PORT = Number(process.env.PORT) || 5000;
-const MONGO_URI = process.env.MONGO_URI || "mongodb+srv://2023yashchikhale_db_user:Yash@2005@urbanease.3x8fq2x.mongodb.net/?retryWrites=true&w=majority&appName=UrbanEase";
+// ✅ Environment Variables
+const PORT = process.env.PORT || 5000;
+const MONGO_URI = process.env.MONGO_URI; // DO NOT FALL BACK TO localhost on Render
 
-// Socket.IO
+if (!MONGO_URI) {
+  console.error("❌ Missing MONGO_URI in environment variables");
+  process.exit(1);
+}
+
+// ✅ Allowed frontend origins
+const allowedOrigins = [
+  process.env.FRONTEND_URL || "http://localhost:3000",
+  ...(process.env.FRONTEND_URLS
+    ? process.env.FRONTEND_URLS.split(",").map((s) => s.trim())
+    : []),
+  /\.vercel\.app$/, // allow Vercel preview deployments
+];
+
+// ✅ Function-based CORS origin checker
+const corsOptions = {
+  origin: (origin, cb) => {
+    if (!origin) return cb(null, true); // allow same-origin or server-to-server requests
+    const ok = allowedOrigins.some((rule) =>
+      rule instanceof RegExp ? rule.test(origin) : rule === origin
+    );
+    cb(ok ? null : new Error("Not allowed by CORS"), ok);
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+};
+
+// ✅ Socket.IO setup
 const io = new Server(server, {
   cors: {
-    origin: ALLOWED_ORIGINS,
+    origin: corsOptions.origin,
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
   },
 });
 
-// Expose io if needed elsewhere (used by payments route and others)
 app.set("io", io);
+app.use(cors(corsOptions));
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
-// CORS for REST API
-app.use(
-  cors({
-    origin: ALLOWED_ORIGINS,
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-  })
-);
-
-// Basic logger
+// ✅ Basic Logger
 app.use((req, _res, next) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
   next();
 });
 
-// Body parsers
-app.use(express.json({ limit: "10mb" }));
-app.use(express.urlencoded({ extended: true, limit: "10mb" }));
-
-// Health check
+// ✅ Health check route (used by Render)
 app.get("/health", (_req, res) => {
-  res.json({ success: true, message: "Server is running", timestamp: new Date().toISOString() });
+  res.json({ success: true, message: "Server is running", time: new Date().toISOString() });
 });
 
-// Socket rooms
+// ✅ Socket.IO Rooms
 io.on("connection", (socket) => {
   console.log("🟢 Client connected:", socket.id);
+
   socket.on("join", (userId) => {
-    if (!userId) return;
-    socket.join(String(userId));
-    console.log(`User ${userId} joined room ${userId}`);
+    if (userId) {
+      socket.join(String(userId));
+      console.log(`User ${userId} joined room ${userId}`);
+    }
   });
+
   socket.on("disconnect", () => {
     console.log("🔴 Client disconnected:", socket.id);
   });
 });
 
-// API routes
+// ✅ API routes
 app.use("/api/auth", authRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/cart", cartRoutes);
 app.use("/api/orders", orderRoutesFn(io));
-app.use("/api/notifications", notificationsRoutes); // NEW
-app.use("/api/payments", paymentRoutes); // NEW
+app.use("/api/notifications", notificationsRoutes);
+app.use("/api/payments", paymentRoutes);
 
-// 404 handler
+// ✅ 404 handler
 app.use((req, res) => res.status(404).json({ success: false, message: "Route not found" }));
 
-// Global error handler
-// eslint-disable-next-line no-unused-vars
+// ✅ Global error handler
 app.use((err, _req, res, _next) => {
   console.error("Global error:", err);
-  res.status(err.status || 500).json({ success: false, message: err.message || "Internal Server Error" });
+  res
+    .status(err.status || 500)
+    .json({ success: false, message: err.message || "Internal Server Error" });
 });
 
-// Start server after DB connects
+// ✅ MongoDB Connection + Server Start
 mongoose
-  .connect(MONGO_URI)
+  .connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
   .then(() => {
-    console.log("🗄️  MongoDB connected");
+    console.log("🗄️  MongoDB connected successfully");
     server.listen(PORT, () => {
-      console.log(`🚀 Server running on http://localhost:${PORT}`);
-      console.log(`🔗 API Base URL: http://localhost:${PORT}/api`);
-      console.log(`🌐 CORS Frontend Origins: ${ALLOWED_ORIGINS.join(", ")}`);
-      console.log("\n📋 Available routes:");
-      console.log("   Auth:");
-      console.log("     - POST /api/auth/signup");
-      console.log("     - POST /api/auth/signup-admin   (requires ADMIN_SECRET)");
-      console.log("     - POST /api/auth/login");
-      console.log("     - GET  /api/auth/profile");
-      console.log("   Products:");
-      console.log("     - GET  /api/products                        (?includeExternal=true to merge external)");
-      console.log("     - GET  /api/products/:id");
-      console.log("   Cart:");
-      console.log("     - GET  /api/cart/:userId");
-      console.log("     - POST /api/cart/:userId/items");
-      console.log("   Orders:");
-      console.log("     - POST /api/orders");
-      console.log("     - GET  /api/orders/my-orders");
-      console.log("     - GET  /api/orders/:id");
-      console.log("     - PATCH /api/orders/:id/status              (admin/moderator)");
-      console.log("   Notifications:");
-      console.log("     - GET  /api/notifications                   (?page=&limit=&userId= for admins)");
-      console.log("     - GET  /api/notifications/unread-count");
-      console.log("     - PATCH /api/notifications/:id/read");
-      console.log("     - POST /api/notifications/mark-all-read");
-      console.log("   Payments (mock):");
-      console.log("     - POST /api/payments/initiate               (body: { orderId })");
-      console.log("     - POST /api/payments/confirm                (body: { orderId, method, reference?, proofDataUrl? })");
-      console.log("     - POST /api/payments/decline                (body: { orderId })");
-      console.log("     - POST /api/payments/select-cod             (body: { orderId })");
-      console.log("🟣 Socket.IO enabled for real-time communication!");
+      console.log(`🚀 Server running on port ${PORT}`);
+      console.log(`🌐 Allowed Origins: ${allowedOrigins.map((o) =>
+        o instanceof RegExp ? o.toString() : o
+      )}`);
+      console.log("🟣 Socket.IO active for real-time updates");
     });
   })
   .catch((err) => {
-    console.error("❌ MongoDB connection error:", err);
+    console.error("❌ MongoDB connection failed:", err.message);
     process.exit(1);
   });
 
-// Avoid silent exits during dev
+// ✅ Handle unhandled rejections
 process.on("unhandledRejection", (reason) => {
   console.error("Unhandled Rejection:", reason);
 });
