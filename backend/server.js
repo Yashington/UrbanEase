@@ -1,18 +1,20 @@
 /**
  * UrbanEase backend server (backend/server.js)
- * - Route imports fixed to use ./routes/*
- * - Loads .env from backend/.env or falls back to ../.env
- * - Uses FRONTEND_URL(S) for CORS and Socket.IO
+ * - Loads .env only in development (not in production on Render)
+ * - CORS/Socket.IO now use a function-based origin check with regex for Vercel previews
+ * - Uses FRONTEND_URL/FRONTEND_URLS for allowed origins
  * - Uses MONGO_URI (defaults to local 127.0.0.1 to avoid IPv6 issues)
- * - Wires Orders, Products, Auth, Cart, Notifications, and Payments routes
+ * - Wires Auth, Products, Cart, Orders, Notifications, and Payments routes
  */
 
 const path = require("path");
 
-// Load env from backend/.env, else try parent ../.env
-let loaded = require("dotenv").config({ path: path.resolve(__dirname, ".env") });
-if (loaded?.error) {
-  loaded = require("dotenv").config({ path: path.resolve(__dirname, "../.env") });
+// Load env only in development; Render injects env vars in production
+if (process.env.NODE_ENV !== "production") {
+  let loaded = require("dotenv").config({ path: path.resolve(__dirname, ".env") });
+  if (loaded?.error) {
+    loaded = require("dotenv").config({ path: path.resolve(__dirname, "../.env") });
+  }
 }
 
 const express = require("express");
@@ -26,23 +28,53 @@ const authRoutes = require("./routes/auth");
 const productRoutes = require("./routes/products");
 const cartRoutes = require("./routes/cart");
 const orderRoutesFn = require("./routes/orders"); // exports a function (io) => router
-const notificationsRoutes = require("./routes/notifications"); // NEW
-const paymentRoutes = require("./routes/payments"); // NEW
+const notificationsRoutes = require("./routes/notifications");
+const paymentRoutes = require("./routes/payments");
 
 const app = express();
 const server = http.createServer(app);
 
 // Env
 const PORT = Number(process.env.PORT) || 5000;
-// Support comma-separated origins via FRONTEND_URL or FRONTEND_URLS
-const ORIGINS_ENV = process.env.FRONTEND_URLS || process.env.FRONTEND_URL || "http://localhost:3000";
-const ALLOWED_ORIGINS = ORIGINS_ENV.split(",").map((s) => s.trim());
 const MONGO_URI = process.env.MONGO_URI || "mongodb://127.0.0.1:27017/urbanease";
 
-// Socket.IO
+/**
+ * Allowed origins
+ * - FRONTEND_URL: single production origin
+ * - FRONTEND_URLS: optional comma-separated list
+ * - Includes a regex for all Vercel preview domains (*.vercel.app)
+ * - Includes localhost:3000 fallback for local development
+ */
+const allowedOrigins = [
+  process.env.FRONTEND_URL || "http://localhost:3000",
+  ...(process.env.FRONTEND_URLS ? process.env.FRONTEND_URLS.split(",").map((s) => s.trim()) : []),
+  /\.vercel\.app$/, // allow Vercel preview deployments
+];
+
+// Function-based CORS origin checker (supports exact strings and regex)
+const corsOptions = {
+  origin: (origin, cb) => {
+    if (!origin) return cb(null, true); // allow same-origin or non-browser clients
+    const ok = allowedOrigins.some((rule) =>
+      rule instanceof RegExp ? rule.test(origin) : rule === origin
+    );
+    cb(ok ? null : new Error("Not allowed by CORS"), ok);
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+};
+
+// Socket.IO with CORS using the same origin function
 const io = new Server(server, {
   cors: {
-    origin: ALLOWED_ORIGINS,
+    origin: (origin, cb) => {
+      if (!origin) return cb(null, true);
+      const ok = allowedOrigins.some((rule) =>
+        rule instanceof RegExp ? rule.test(origin) : rule === origin
+      );
+      cb(ok ? null : new Error("Not allowed by CORS"), ok);
+    },
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
@@ -53,14 +85,7 @@ const io = new Server(server, {
 app.set("io", io);
 
 // CORS for REST API
-app.use(
-  cors({
-    origin: ALLOWED_ORIGINS,
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-  })
-);
+app.use(cors(corsOptions));
 
 // Basic logger
 app.use((req, _res, next) => {
@@ -95,8 +120,8 @@ app.use("/api/auth", authRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/cart", cartRoutes);
 app.use("/api/orders", orderRoutesFn(io));
-app.use("/api/notifications", notificationsRoutes); // NEW
-app.use("/api/payments", paymentRoutes); // NEW
+app.use("/api/notifications", notificationsRoutes);
+app.use("/api/payments", paymentRoutes);
 
 // 404 handler
 app.use((req, res) => res.status(404).json({ success: false, message: "Route not found" }));
@@ -116,7 +141,11 @@ mongoose
     server.listen(PORT, () => {
       console.log(`🚀 Server running on http://localhost:${PORT}`);
       console.log(`🔗 API Base URL: http://localhost:${PORT}/api`);
-      console.log(`🌐 CORS Frontend Origins: ${ALLOWED_ORIGINS.join(", ")}`);
+      console.log(
+        `🌐 CORS Frontend Origins: ${allowedOrigins
+          .map((o) => (o instanceof RegExp ? o.toString() : o))
+          .join(", ")}`
+      );
       console.log("\n📋 Available routes:");
       console.log("   Auth:");
       console.log("     - POST /api/auth/signup");
