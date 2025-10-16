@@ -1,7 +1,8 @@
-# Node
+# ------------------------------
+# Node.js dependencies
 node_modules/
 
-# Package manager caches (optional but helpful)
+# Package manager caches
 .pnpm-store/
 .npm/
 .yarn/cache/
@@ -9,7 +10,8 @@ node_modules/
 .yarn/build-state.yml
 .yarn/install-state.gz
 
-# Build/output
+# ------------------------------
+# Build / output directories
 dist/
 build/
 .next/
@@ -20,16 +22,17 @@ out/
 .vite/
 .eslintcache
 
-# Framework outputs (add only if you use them)
+# Framework-specific outputs
 .nuxt/
 .svelte-kit/
 
-# Env/secrets
-# Ignore all dotenv files, but keep examples committed
-.env
-.env.*
-!.env.example
-!*/.env.example
+# ------------------------------
+# Environment files (DO NOT COMMIT!)
+# Ignore all dotenv files in every folder
+**/.env
+**/.env.*
+!**/.env.example  # Keep example env files (safe)
+# ------------------------------
 
 # Logs
 logs/
@@ -43,7 +46,7 @@ lerna-debug.log*
 # Coverage / test artifacts
 coverage/
 
-# OS/editor
+# OS / Editor files
 .DS_Store
 Thumbs.db
 .idea/
