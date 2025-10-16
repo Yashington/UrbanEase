@@ -34,7 +34,7 @@ const server = http.createServer(app);
 
 // Env
 const PORT = Number(process.env.PORT) || 5000;
-const MONGO_URI = process.env.MONGO_URI || "mongodb://127.0.0.1:27017/urbanease";
+const MONGO_URI = process.env.MONGO_URI || "mongodb+srv://2023yashchikhale_db_user:Yash@2005@urbanease.3x8fq2x.mongodb.net/?retryWrites=true&w=majority&appName=UrbanEase";
 
 // Socket.IO
 const io = new Server(server, {
