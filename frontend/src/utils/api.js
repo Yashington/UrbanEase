@@ -1,4 +1,10 @@
-const API_BASE = process.env.REACT_APP_API_URL || "https://urbanease-backend.onrender.com";
+// Unified API base URL used across the app (API + Socket.IO)
+// Priority: REACT_APP_API_URL env -> localhost for dev -> production URL
+export const API_BASE =
+  process.env.REACT_APP_API_URL ||
+  (typeof window !== "undefined" && window.location.hostname === "localhost"
+    ? "http://localhost:5000"
+    : "https://urbanease-backend.onrender.com");
 
 export const apiFetch = async (path, options = {}) => {
   const token = localStorage.getItem("accessToken");

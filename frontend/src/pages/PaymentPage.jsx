@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 
 const API_BASE = process.env.REACT_APP_API_URL || "https://urbanease-backend.onrender.com";
