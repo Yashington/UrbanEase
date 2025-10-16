@@ -44,7 +44,7 @@ if (!MONGO_URI) {
 
 // ✅ Allowed frontend origins
 const allowedOrigins = [
-  process.env.FRONTEND_URL || "http://localhost:3000",
+  process.env.FRONTEND_URL || "https://urbanease-frontend.onrender.com",
   ...(process.env.FRONTEND_URLS
     ? process.env.FRONTEND_URLS.split(",").map((s) => s.trim())
     : []),
