@@ -35,7 +35,7 @@ const server = http.createServer(app);
 
 // ✅ Environment Variables
 const PORT = process.env.PORT || 5000;
-const MONGO_URI = process.env.MONGO_URI; // DO NOT FALL BACK TO localhost on Render
+const MONGO_URI = process.env.MONGO_URI;
 
 if (!MONGO_URI) {
   console.error("❌ Missing MONGO_URI in environment variables");
